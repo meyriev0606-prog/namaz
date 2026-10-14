@@ -35,19 +35,11 @@
     --accent-2: #8b5cf6;
   }
   [data-theme="light"] {
-    --bg-1: #f0f4ff;
-    --bg-2: #e8eefc;
-    --bg-3: #dde5f5;
-    --panel: rgba(255,255,255,0.7);
-    --panel-strong: rgba(255,255,255,0.85);
-    --panel-border: rgba(15,23,42,0.08);
-    --panel-border-strong: rgba(15,23,42,0.15);
-    --text: #0f172a;
-    --text-muted: #475569;
-    --text-dim: #64748b;
-    --text-faint: #94a3b8;
-    --nav-bg: rgba(255,255,255,0.95);
-    --input-bg: rgba(255,255,255,0.9);
+    --bg-1: #f0f4ff; --bg-2: #e8eefc; --bg-3: #dde5f5;
+    --panel: rgba(255,255,255,0.7); --panel-strong: rgba(255,255,255,0.85);
+    --panel-border: rgba(15,23,42,0.08); --panel-border-strong: rgba(15,23,42,0.15);
+    --text: #0f172a; --text-muted: #475569; --text-dim: #64748b; --text-faint: #94a3b8;
+    --nav-bg: rgba(255,255,255,0.95); --input-bg: rgba(255,255,255,0.9);
     --shadow-color: rgba(15,23,42,0.1);
   }
   [data-theme="morning"] {
@@ -96,7 +88,32 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  .city-wrap { position: relative; margin-bottom: 16px; }
+  /* Геолокация */
+  .geo-btn {
+    width: 100%;
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.35);
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .geo-btn:hover { transform: translateY(-1px); }
+  .geo-btn:active { transform: translateY(0); }
+  .geo-btn.loading { opacity: 0.7; cursor: wait; }
+
+  .city-wrap { margin-bottom: 16px; }
+  .city-select-wrap { position: relative; }
   .city-select {
     width: 100%; padding: 14px 40px 14px 16px;
     background: var(--input-bg); color: var(--text);
@@ -113,6 +130,16 @@
   .date-info { text-align: center; color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
   .date-info b { color: var(--text); }
   .hijri { display: block; margin-top: 3px; color: var(--text-dim); font-size: 11px; }
+  .geo-badge {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(99,102,241,0.15);
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 4px;
+    font-weight: 600;
+  }
 
   .next-card {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
@@ -567,7 +594,6 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  /* Кнопка установки PWA */
   .install-btn {
     display: none;
     position: fixed;
@@ -600,39 +626,47 @@
       <h1>🕌 Время намаза</h1>
       <p>Точное расписание по вашему городу</p>
     </div>
+
     <div class="city-wrap">
-      <select id="citySelect" class="city-select">
-        <option value="55.7558,37.6173">Москва</option>
-        <option value="59.9311,30.3609">Санкт-Петербург</option>
-        <option value="55.0084,82.9357">Новосибирск</option>
-        <option value="56.8389,60.6057">Екатеринбург</option>
-        <option value="55.7963,49.1088">Казань</option>
-        <option value="54.7388,55.9721">Уфа</option>
-        <option value="53.2001,50.1500">Самара</option>
-        <option value="56.3269,44.0059">Нижний Новгород</option>
-        <option value="48.7080,44.5133">Волгоград</option>
-        <option value="51.5336,46.0343">Саратов</option>
-        <option value="54.9885,73.3242">Омск</option>
-        <option value="57.1522,65.5272">Тюмень</option>
-        <option value="55.1644,61.4368">Челябинск</option>
-        <option value="47.2313,39.7233">Ростов-на-Дону</option>
-        <option value="45.0355,38.9753">Краснодар</option>
-        <option value="43.1155,131.8855">Владивосток</option>
-        <option value="43.3179,45.6981">Грозный</option>
-        <option value="42.9764,47.5022">Махачкала</option>
-        <option value="43.4981,43.6189">Нальчик</option>
-        <option value="43.0367,44.6678">Владикавказ</option>
-        <option value="43.2389,76.8897">Алматы</option>
-        <option value="41.2995,69.2401">Ташкент</option>
-        <option value="40.4093,49.8671">Баку</option>
-        <option value="41.0082,28.9784">Стамбул</option>
-        <option value="21.4225,39.8262">Мекка</option>
-      </select>
-      <span class="city-icon">▼</span>
+      <button class="geo-btn" id="geoBtn">
+        📍 Определить моё местоположение
+      </button>
+      <div class="city-select-wrap">
+        <select id="citySelect" class="city-select">
+          <option value="55.7558,37.6173">Москва</option>
+          <option value="59.9311,30.3609">Санкт-Петербург</option>
+          <option value="55.0084,82.9357">Новосибирск</option>
+          <option value="56.8389,60.6057">Екатеринбург</option>
+          <option value="55.7963,49.1088">Казань</option>
+          <option value="54.7388,55.9721">Уфа</option>
+          <option value="53.2001,50.1500">Самара</option>
+          <option value="56.3269,44.0059">Нижний Новгород</option>
+          <option value="48.7080,44.5133">Волгоград</option>
+          <option value="51.5336,46.0343">Саратов</option>
+          <option value="54.9885,73.3242">Омск</option>
+          <option value="57.1522,65.5272">Тюмень</option>
+          <option value="55.1644,61.4368">Челябинск</option>
+          <option value="47.2313,39.7233">Ростов-на-Дону</option>
+          <option value="45.0355,38.9753">Краснодар</option>
+          <option value="43.1155,131.8855">Владивосток</option>
+          <option value="43.3179,45.6981">Грозный</option>
+          <option value="42.9764,47.5022">Махачкала</option>
+          <option value="43.4981,43.6189">Нальчик</option>
+          <option value="43.0367,44.6678">Владикавказ</option>
+          <option value="43.2389,76.8897">Алматы</option>
+          <option value="41.2995,69.2401">Ташкент</option>
+          <option value="40.4093,49.8671">Баку</option>
+          <option value="41.0082,28.9784">Стамбул</option>
+          <option value="21.4225,39.8262">Мекка</option>
+        </select>
+        <span class="city-icon">▼</span>
+      </div>
     </div>
+
     <div class="date-info" id="dateInfo" style="display:none;">
       <b id="gregDate">—</b>
       <span class="hijri" id="hijriDate">—</span>
+      <span class="geo-badge" id="geoBadge" style="display:none;">📍 GPS</span>
     </div>
     <div class="next-card" id="nextCard" style="display:none;">
       <div class="next-label">Следующий намаз</div>
@@ -850,6 +884,16 @@
       </div>
     </div>
     <div class="settings-group">
+      <div class="settings-group-title">Местоположение</div>
+      <div class="settings-row">
+        <div class="settings-label">
+          Определение
+          <small>Для расчёта времени намаза</small>
+        </div>
+        <button class="btn-calibrate" id="geoBtn2" style="margin:0;">📍 Определить</button>
+      </div>
+    </div>
+    <div class="settings-group">
       <div class="settings-group-title">Расчёт</div>
       <div class="settings-row">
         <div class="settings-label">Метод расчёта<small>Фаджр и Иша</small></div>
@@ -881,7 +925,7 @@
         </select>
       </div>
     </div>
-    <div class="footer">Seynaro v1.7 · PWA</div>
+    <div class="footer">Seynaro v1.8 · PWA</div>
   </div>
 
 </div>
@@ -909,7 +953,6 @@
 
 <div class="toast" id="toast">Готово</div>
 
-<!-- Кнопка установки PWA -->
 <button class="install-btn" id="installBtn">
   📲 Установить приложение
 </button>
@@ -917,7 +960,7 @@
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
 window.addEventListener('load', function() {
-  console.log('=== SEYNARO v1.7 (PWA) ===');
+  console.log('=== SEYNARO v1.8 (geo) ===');
 
   if (typeof adhan === 'undefined') {
     document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
@@ -943,6 +986,7 @@ window.addEventListener('load', function() {
   let countdownInterval = null;
   let currentLat = 55.7558;
   let currentLon = 37.6173;
+  let isGpsLocation = false;
   let qiblaBearing = 0;
   let deviceHeading = 0;
   let manualHeading = null;
@@ -973,6 +1017,7 @@ window.addEventListener('load', function() {
     Object.assign(settings, JSON.parse(localStorage.getItem('namaz_settings') || '{}'));
     Object.assign(notifySettings, JSON.parse(localStorage.getItem('namaz_notify') || '{}'));
     trackerData = JSON.parse(localStorage.getItem('namaz_tracker') || '{}');
+    isGpsLocation = localStorage.getItem('namaz_gps') === '1';
   } catch (e) {}
 
   function showToast(msg) {
@@ -999,7 +1044,7 @@ window.addEventListener('load', function() {
     });
   }
 
-  // ТЕМА
+  // ============ ТЕМА ============
   function getAutoTheme() {
     const h = new Date().getHours();
     if (h >= 5 && h < 9) return 'morning';
@@ -1029,7 +1074,80 @@ window.addEventListener('load', function() {
     showToast('Тема: ' + names[theme]);
   }
 
-  // РАСЧЁТ
+  // ============ ГЕОЛОКАЦИЯ ============
+  function updateGeoBadge() {
+    const badge = $('geoBadge');
+    if (badge) {
+      badge.style.display = isGpsLocation ? 'inline-block' : 'none';
+    }
+  }
+
+  function tryGeolocation() {
+    const btn = $('geoBtn');
+    if (!navigator.geolocation) {
+      showToast('Браузер не поддерживает геолокацию');
+      return;
+    }
+
+    if (btn) {
+      btn.classList.add('loading');
+      btn.textContent = '🛰 Определяем…';
+    }
+
+    const timeout = setTimeout(() => {
+      if (btn) {
+        btn.classList.remove('loading');
+        btn.textContent = '📍 Определить моё местоположение';
+      }
+      showToast('Не удалось определить. Выберите город из списка');
+    }, 10000);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(timeout);
+        if (btn) {
+          btn.classList.remove('loading');
+          btn.textContent = '📍 Определить моё местоположение';
+        }
+
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const coords = lat.toFixed(4) + ',' + lon.toFixed(4);
+
+        localStorage.setItem('namaz_city', coords);
+        localStorage.setItem('namaz_gps', '1');
+        isGpsLocation = true;
+
+        const sel = $('citySelect');
+        if (sel) sel.selectedIndex = -1;
+
+        updateGeoBadge();
+        calculate(lat, lon);
+        if ($('page-calendar').classList.contains('active')) renderCalendar();
+
+        showToast('✅ Местоположение определено');
+        console.log('📍 GPS координаты:', coords);
+      },
+      (err) => {
+        clearTimeout(timeout);
+        if (btn) {
+          btn.classList.remove('loading');
+          btn.textContent = '📍 Определить моё местоположение';
+        }
+
+        let msg = 'Не удалось определить местоположение';
+        if (err.code === 1) msg = 'Доступ к геолокации запрещён';
+        else if (err.code === 2) msg = 'Геолокация недоступна';
+        else if (err.code === 3) msg = 'Время ожидания истекло';
+
+        showToast(msg);
+        console.warn('Geo error:', err.message);
+      },
+      { enableHighAccuracy: false, timeout: 9000, maximumAge: 600000 }
+    );
+  }
+
+  // ============ РАСЧЁТ ============
   function getCalcParams() {
     const methodFn = adhan.CalculationMethod[settings.method] || adhan.CalculationMethod.MuslimWorldLeague;
     const params = methodFn();
@@ -1066,6 +1184,8 @@ window.addEventListener('load', function() {
       }).format(now);
     } catch (e) {}
     $('dateInfo').style.display = 'block';
+    updateGeoBadge();
+
     const next = prayerTimes.nextPrayer();
     let html = '';
     for (const key of PRAYER_ORDER) {
@@ -1114,7 +1234,7 @@ window.addEventListener('load', function() {
     countdownInterval = setInterval(updateCountdown, 1000);
   }
 
-  // ТРЕКЕР
+  // ============ ТРЕКЕР ============
   function getTodayRecord() {
     const key = dateKey();
     if (!trackerData[key]) trackerData[key] = {};
@@ -1217,7 +1337,7 @@ window.addEventListener('load', function() {
     $('weekDays').innerHTML = weekHtml;
   }
 
-  // КИБЛА
+  // ============ КИБЛА ============
   function calculateQibla(lat, lon) {
     const toRad = d => d * Math.PI / 180;
     const toDeg = r => r * 180 / Math.PI;
@@ -1349,7 +1469,7 @@ window.addEventListener('load', function() {
     updateCompass();
   }
 
-  // КАЛЕНДАРЬ
+  // ============ КАЛЕНДАРЬ ============
   function buildCalendarData(year, month) {
     const data = [];
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -1430,7 +1550,7 @@ window.addEventListener('load', function() {
     showToast('✅ CSV скачан');
   }
 
-  // УВЕДОМЛЕНИЯ
+  // ============ УВЕДОМЛЕНИЯ ============
   function isQuietTime(date) {
     if (!notifySettings.quietHours) return false;
     const h = date.getHours();
@@ -1595,7 +1715,7 @@ window.addEventListener('load', function() {
     }
   }
 
-  // ОСНОВНЫЕ
+  // ============ ОСНОВНЫЕ ============
   function bindMain() {
     $('citySelect').addEventListener('change', function(e) {
       const v = e.target.value;
@@ -1603,11 +1723,18 @@ window.addEventListener('load', function() {
         const [lat, lon] = v.split(',').map(parseFloat);
         if (!isNaN(lat) && !isNaN(lon)) {
           localStorage.setItem('namaz_city', v);
+          localStorage.setItem('namaz_gps', '0');
+          isGpsLocation = false;
+          updateGeoBadge();
           calculate(lat, lon);
           if ($('page-calendar').classList.contains('active')) renderCalendar();
         }
       }
     });
+
+    if ($('geoBtn')) $('geoBtn').addEventListener('click', tryGeolocation);
+    if ($('geoBtn2')) $('geoBtn2').addEventListener('click', tryGeolocation);
+
     $('methodSelect').addEventListener('change', function(e) {
       settings.method = e.target.value;
       saveSettings();
@@ -1669,6 +1796,7 @@ window.addEventListener('load', function() {
     updateNotifUI();
 
     const savedCity = localStorage.getItem('namaz_city') || '55.7558,37.6173';
+
     let found = false;
     for (let i = 0; i < $('citySelect').options.length; i++) {
       if ($('citySelect').options[i].value === savedCity) {
@@ -1677,16 +1805,28 @@ window.addEventListener('load', function() {
         break;
       }
     }
-    if (!found) $('citySelect').selectedIndex = 0;
 
-    const parts = $('citySelect').value.split(',');
-    calculate(parseFloat(parts[0]), parseFloat(parts[1]));
+    const parts = savedCity.split(',');
+    const lat = parseFloat(parts[0]);
+    const lon = parseFloat(parts[1]);
+
+    if (!found) {
+      $('citySelect').selectedIndex = -1;
+      isGpsLocation = true;
+    }
+
+    updateGeoBadge();
+
+    if (!isNaN(lat) && !isNaN(lon)) {
+      calculate(lat, lon);
+    }
+
     startCompass();
     setInterval(() => {
       if (settings.theme === 'auto') applyTheme();
     }, 15 * 60 * 1000);
 
-    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.7 ЗАВЕРШЕНА ===');
+    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.8 ЗАВЕРШЕНА ===');
   }
 
   init();
