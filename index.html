@@ -782,7 +782,7 @@
         <span class="accuracy-dot" id="accuracyDot"></span>
         <span id="accuracyText">Определяем датчик…</span>
       </div>
-      <button class="btn-calibrate" id="calibrateBtn">🔄 Калибровать / вручную</button>
+      <button class="btn-calibrate" id="calibrateBtn">🧭 Включить компас</button>
       <div class="qibla-info" style="margin-top: 20px;">
         <div class="qibla-stat">
           <div class="qibla-stat-label">Кибла</div>
@@ -925,7 +925,7 @@
         </select>
       </div>
     </div>
-    <div class="footer">Seynaro v1.8 · PWA</div>
+    <div class="footer">Seynaro v1.9 · iOS Compass Fix</div>
   </div>
 
 </div>
@@ -960,7 +960,7 @@
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
 window.addEventListener('load', function() {
-  console.log('=== SEYNARO v1.8 (geo) ===');
+  console.log('=== SEYNARO v1.9 (iOS compass fix) ===');
 
   if (typeof adhan === 'undefined') {
     document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
@@ -981,6 +981,8 @@ window.addEventListener('load', function() {
   const WEEKDAYS_RU = ['вс','пн','вт','ср','чт','пт','сб'];
 
   const $ = id => document.getElementById(id);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   let prayerTimes = null;
   let countdownInterval = null;
@@ -991,6 +993,7 @@ window.addEventListener('load', function() {
   let deviceHeading = 0;
   let manualHeading = null;
   let hasCompass = false;
+  let compassListenerAttached = false;
   let calendarYear = new Date().getFullYear();
   let calendarMonth = new Date().getMonth();
   let calendarData = [];
@@ -1387,9 +1390,16 @@ window.addEventListener('load', function() {
 
   function handleOrientation(e) {
     let heading = null;
-    if (e.webkitCompassHeading !== undefined) heading = e.webkitCompassHeading;
-    else if (e.alpha !== null) heading = 360 - e.alpha;
-    if (heading !== null) {
+    // iOS Safari возвращает webkitCompassHeading (уже в градусах от севера)
+    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+      heading = e.webkitCompassHeading;
+    }
+    // Android и другие: alpha — угол от севера против часовой
+    else if (e.alpha !== null && e.alpha !== undefined) {
+      heading = 360 - e.alpha;
+    }
+
+    if (heading !== null && !isNaN(heading)) {
       const diff = heading - deviceHeading;
       const sm = diff > 180 ? diff - 360 : diff < -180 ? diff + 360 : diff;
       deviceHeading = (deviceHeading + sm * 0.3 + 360) % 360;
@@ -1400,24 +1410,84 @@ window.addEventListener('load', function() {
     }
   }
 
+  // Прикрепляем слушатель один раз
+  function attachCompassListener() {
+    if (compassListenerAttached) return;
+    compassListenerAttached = true;
+    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    console.log('📡 Слушатель компаса прикреплён');
+  }
+
+  // Инициализация компаса
   function startCompass() {
     if (typeof DeviceOrientationEvent === 'undefined') {
       updateAccuracy('bad', 'Датчик не поддерживается');
       return;
     }
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      DeviceOrientationEvent.requestPermission()
-        .then(r => {
-          if (r === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation, true);
-            updateAccuracy('good', 'Датчик разрешён');
-          } else updateAccuracy('bad', 'Нет доступа');
-        })
-        .catch(() => updateAccuracy('bad', 'Ошибка датчика'));
-    } else {
-      window.addEventListener('deviceorientation', handleOrientation, true);
-      setTimeout(() => { if (!hasCompass) updateAccuracy('bad', 'Датчик не активен'); }, 2000);
+
+    const needsPermission = typeof DeviceOrientationEvent.requestPermission === 'function';
+
+    if (needsPermission) {
+      // iOS: разрешение нужно запрашивать по клику пользователя
+      if (isIOS) {
+        updateAccuracy('', 'Нажмите «Включить компас»');
+      } else {
+        updateAccuracy('', 'Нажмите «Включить компас»');
+      }
+      return;
     }
+
+    // Android и другие: датчик доступен сразу
+    attachCompassListener();
+    setTimeout(() => {
+      if (!hasCompass) {
+        if (isMobile) {
+          updateAccuracy('', 'Потрясите телефон для калибровки');
+        } else {
+          updateAccuracy('', 'Вращайте компас мышкой');
+        }
+      }
+    }, 2500);
+  }
+
+  // Запрос разрешения (вызывается по клику)
+  function requestCompassPermission() {
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      showToast('Датчик не поддерживается');
+      return;
+    }
+
+    // Если разрешение не требуется (Android) — просто включаем
+    if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
+      attachCompassListener();
+      if (!hasCompass) {
+        updateAccuracy('', isMobile ? 'Потрясите телефон' : 'Вращайте мышкой');
+      } else {
+        updateAccuracy('good', 'Компас активен');
+      }
+      showToast('Компас включён');
+      return;
+    }
+
+    // iOS — запрашиваем разрешение
+    DeviceOrientationEvent.requestPermission()
+      .then(r => {
+        if (r === 'granted') {
+          attachCompassListener();
+          updateAccuracy('good', 'Компас активен');
+          showToast('✅ Компас включён');
+          console.log('✅ Разрешение компаса получено');
+        } else {
+          updateAccuracy('bad', 'Доступ запрещён');
+          showToast('Доступ к компасу запрещён');
+        }
+      })
+      .catch(err => {
+        console.warn('Compass permission error:', err);
+        updateAccuracy('bad', 'Ошибка доступа');
+        showToast('Ошибка доступа к компасу');
+      });
   }
 
   function updateAccuracy(type, text) {
@@ -1766,18 +1836,21 @@ window.addEventListener('load', function() {
         if (page === 'tracker') renderTracker();
       });
     });
+
+    // Кнопка "Включить компас" — по клику запрашивает разрешение (iOS!)
     if ($('calibrateBtn')) {
       $('calibrateBtn').addEventListener('click', function() {
         if (hasCompass) {
           manualHeading = null;
           updateCompass();
           updateAccuracy('good', 'Компас активен');
+          showToast('Компас активен');
         } else {
-          manualHeading = 0;
-          updateCompass();
+          requestCompassPermission();
         }
       });
     }
+
     if ($('prevMonth')) $('prevMonth').addEventListener('click', () => changeMonth(-1));
     if ($('nextMonth')) $('nextMonth').addEventListener('click', () => changeMonth(1));
     if ($('downloadCsv')) $('downloadCsv').addEventListener('click', downloadCSV);
@@ -1826,7 +1899,7 @@ window.addEventListener('load', function() {
       if (settings.theme === 'auto') applyTheme();
     }, 15 * 60 * 1000);
 
-    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.8 ЗАВЕРШЕНА ===');
+    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.9 ЗАВЕРШЕНА ===');
   }
 
   init();
