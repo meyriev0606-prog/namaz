@@ -580,7 +580,8 @@
 
   .status { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
   .status.error { color: #f87171; }
-  .footer { text-align: center; color: var(--text-faint); font-size: 10px; margin-top: 24px; letter-spacing: 0.5px; }
+  .footer { text-align: center; color: var(--text-faint); font-size: 10px; margin-top: 24px; letter-spacing: 0.8px; }
+  .footer b { color: var(--text-dim); font-weight: 600; }
 
   .toast {
     position: fixed; bottom: 100px; left: 50%;
@@ -676,7 +677,7 @@
     </div>
     <div class="prayers-list" id="prayersList" style="display:none;"></div>
     <div class="status" id="status"><div>Загрузка…</div></div>
-    <div class="footer">SEYNARO · PRAYER TIMES</div>
+    <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
   </div>
 
   <!-- ТРЕКЕР -->
@@ -714,6 +715,7 @@
       <b>Как работает:</b><br>
       Нажмите <b>✓</b> если намаз совершён, <b>✗</b> если пропущен. Отметки сохраняются автоматически.
     </div>
+    <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
   </div>
 
   <!-- КАЛЕНДАРЬ -->
@@ -752,6 +754,7 @@
         <span>Пятница (Джума)</span>
       </div>
     </div>
+    <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
   </div>
 
   <!-- КИБЛА -->
@@ -798,6 +801,7 @@
         Поверните телефон так, чтобы зелёная стрелка указывала вверх — это направление на Мекку. Работает в любом положении телефона.
       </div>
     </div>
+    <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
   </div>
 
   <!-- УВЕДОМЛЕНИЯ -->
@@ -864,6 +868,7 @@
         <button class="btn-calibrate" id="testNotifBtn" style="margin:0;">Проверить</button>
       </div>
     </div>
+    <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
   </div>
 
   <!-- НАСТРОЙКИ -->
@@ -925,7 +930,34 @@
         </select>
       </div>
     </div>
-    <div class="footer">Seynaro v1.9 · Компас в любом положении</div>
+    <div class="settings-group">
+      <div class="settings-group-title">Об авторе</div>
+      <div class="settings-row" style="display:block;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="
+            width: 56px; height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px;
+            flex-shrink: 0;
+            box-shadow: 0 8px 20px rgba(99,102,241,0.4);
+          ">🕌</div>
+          <div>
+            <div style="font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -0.3px;">
+              Seynaro
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 2px;">
+              Автор — <b style="color: var(--accent);">Meyriev Magomed</b>
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+              Версия 1.9 · 2026
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
   </div>
 
 </div>
@@ -960,7 +992,7 @@
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
 window.addEventListener('load', function() {
-  console.log('=== SEYNARO v1.9 (compass any position) ===');
+  console.log('=== SEYNARO v1.9 (Meyriev Magomed) ===');
 
   if (typeof adhan === 'undefined') {
     document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
@@ -1371,47 +1403,34 @@ window.addEventListener('load', function() {
     if ($('qiblaArrow')) $('qiblaArrow').style.transform = `rotate(${qiblaBearing - heading}deg)`;
   }
 
-  // ===== Компас в любом положении телефона =====
   function handleOrientation(e) {
     let heading = null;
 
-    // iOS: webkitCompassHeading — уже готовый курс, работает в любом положении
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
       heading = e.webkitCompassHeading;
     } else if (e.alpha !== null && e.alpha !== undefined) {
-      // Android и другие браузеры
       const alpha = e.alpha;
       const beta = e.beta || 0;
       const gamma = e.gamma || 0;
 
-      // Компенсация положения телефона:
-      // - Если телефон горизонтально: heading = 360 - alpha
-      // - Если вертикально: нужна коррекция через beta и gamma
       let compassHeading;
-
       const betaRad = beta * Math.PI / 180;
       const gammaRad = gamma * Math.PI / 180;
 
       if (Math.abs(beta) < 25) {
-        // Телефон почти горизонтально — простая формула
         compassHeading = 360 - alpha;
       } else {
-        // Телефон наклонён — используем проекцию
         const sinBeta = Math.sin(betaRad);
-        const cosBeta = Math.cos(betaRad);
-        const sinGamma = Math.sin(gammaRad);
         const cosGamma = Math.cos(gammaRad);
+        const sinGamma = Math.sin(gammaRad);
 
-        // Вектор, указывающий на север, в системе координат телефона
         const x = -sinBeta * cosGamma;
         const y = sinGamma;
 
         compassHeading = Math.atan2(x, y) * 180 / Math.PI;
         if (compassHeading < 0) compassHeading += 360;
 
-        // Если альфа известна — используем её как основу
         if (!isNaN(alpha)) {
-          // Комбинируем: базовый курс alpha + компенсация
           const compensation = (alpha + 360) % 360;
           compassHeading = (compassHeading + compensation) % 360;
         }
@@ -1422,12 +1441,9 @@ window.addEventListener('load', function() {
 
     if (heading !== null && !isNaN(heading)) {
       heading = (heading + 360) % 360;
-
-      // Плавное сглаживание
       const diff = heading - deviceHeading;
       const sm = diff > 180 ? diff - 360 : diff < -180 ? diff + 360 : diff;
       deviceHeading = (deviceHeading + sm * 0.35 + 360) % 360;
-
       hasCompass = true;
       manualHeading = null;
       updateCompass();
@@ -1436,22 +1452,15 @@ window.addEventListener('load', function() {
   }
 
   function attachCompassListeners() {
-    // deviceorientationabsolute — точнее (только Android)
     if ('ondeviceorientationabsolute' in window) {
       window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-      console.log('✅ Используем deviceorientationabsolute');
     }
-    // Обычный deviceorientation — для совместимости
     window.addEventListener('deviceorientation', handleOrientation, true);
 
     setTimeout(() => {
       if (!hasCompass) {
         const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-        if (isMobile) {
-          updateAccuracy('', 'Потрясите телефон для калибровки');
-        } else {
-          updateAccuracy('', 'Вращайте компас мышкой');
-        }
+        updateAccuracy('', isMobile ? 'Потрясите телефон для калибровки' : 'Вращайте компас мышкой');
       }
     }, 2500);
   }
@@ -1461,20 +1470,15 @@ window.addEventListener('load', function() {
       updateAccuracy('bad', 'Датчик не поддерживается');
       return;
     }
-
-    // iOS требует разрешения по клику
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       updateAccuracy('', 'Нажмите «Включить компас» для доступа');
       return;
     }
-
-    // Android — пробуем сразу
     attachCompassListeners();
   }
 
   function requestCompassPermission() {
     if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
-      // Android — просто включаем
       attachCompassListeners();
       return;
     }
@@ -1849,7 +1853,6 @@ window.addEventListener('load', function() {
           updateAccuracy('good', 'Компас активен');
           showToast('Компас активен');
         } else {
-          // iOS: запрос разрешения; Android: переприсоединяем
           requestCompassPermission();
         }
       });
@@ -1902,11 +1905,71 @@ window.addEventListener('load', function() {
       if (settings.theme === 'auto') applyTheme();
     }, 15 * 60 * 1000);
 
-    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.9 ЗАВЕРШЕНА ===');
+    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.9 (Meyriev Magomed) ЗАВЕРШЕНА ===');
   }
 
   init();
 });
+</script>
+
+<!-- Тост автора при первом запуске -->
+<script>
+(function() {
+  const KEY = 'seynaro_about_shown_v1';
+  if (localStorage.getItem(KEY)) return;
+
+  setTimeout(() => {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 100px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+      padding: 18px 26px;
+      border-radius: 16px;
+      font-size: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: auto;
+      transition: 0.4s;
+      z-index: 300;
+      box-shadow: 0 12px 32px rgba(99,102,241,0.5);
+      text-align: center;
+      letter-spacing: 0.5px;
+      max-width: 90vw;
+    `;
+    toast.innerHTML = `
+      <div style="font-size: 24px; margin-bottom: 6px;">🕌</div>
+      <div style="font-size: 15px; font-weight: 800; letter-spacing: 0.8px;">
+        SEYNARO
+      </div>
+      <div style="font-size: 12px; opacity: 0.85; margin-top: 4px; font-weight: 500;">
+        Meyriev Magomed
+      </div>
+      <div style="font-size: 9px; opacity: 0.6; margin-top: 8px; font-weight: 400; letter-spacing: 1px;">
+        НАЖМИТЕ, ЧТОБЫ ЗАКРЫТЬ
+      </div>
+    `;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+
+    const hide = () => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(20px)';
+      setTimeout(() => toast.remove(), 400);
+      localStorage.setItem(KEY, '1');
+    };
+
+    toast.addEventListener('click', hide);
+    setTimeout(() => { if (toast.parentNode) hide(); }, 6000);
+  }, 2000);
+})();
 </script>
 
 <!-- PWA: регистрация Service Worker + кнопка установки -->
