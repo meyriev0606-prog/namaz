@@ -1,7 +1,7 @@
 /* Seynaro — Service Worker
    Обеспечивает работу офлайн. */
 
-const CACHE_NAME = 'seynaro-namaz-v1';
+const CACHE_NAME = 'seynaro-namaz-v2';
 
 const ASSETS = [
   './',
