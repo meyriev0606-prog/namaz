@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Seynaro — подключение уведомлений</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      min-height: 100vh;
+      background: #101827;
+      color: #f3f6fc;
+      font-family: Arial, sans-serif;
+    }
+    main {
+      max-width: 540px;
+      margin: 30px auto;
+      padding: 24px;
+      background: #1b2638;
+      border: 1px solid #344158;
+      border-radius: 20px;
+    }
+    h1 { margin-top: 0; font-size: 26px; }
+    p { color: #c3cede; line-height: 1.6; }
+    button {
+      width: 100%;
+      padding: 15px;
+      margin: 8px 0;
+      border: 0;
+      border-radius: 12px;
+      background: #4f8cff;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .5; cursor: default; }
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #43516a;
+      background: #101827;
+      color: white;
+      overflow-wrap: anywhere;
+    }
+    #status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #101827;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .hint { font-size: 13px; }
+    a { color: #8eb8ff; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>🔔 Seynaro</h1>
+  <p>Подключение уведомлений о времени намаза.</p>
+  <p>
+    Разреши уведомления, чтобы подготовить подписку
+    для доставки напоминаний, когда сайт закрыт.
+  </p>
+
+  <button id="subscribeBtn">Подключить уведомления</button>
+  <button id="copyBtn" hidden>Скопировать подписку</button>
+
+  <div id="status" role="status" aria-live="polite">
+    Ожидание подключения.
+  </div>
+
+  <div id="result" hidden>
+    <p><strong>Данные подписки</strong></p>
+    <textarea id="subscription" readonly></textarea>
+    <p class="hint">
+      Подписка содержит адрес доставки и ключи устройства.
+      Не публикуй её в открытом доступе.
+    </p>
+  </div>
+
+  <p class="hint">
+    <a href="./">Вернуться на Seynaro</a>
+  </p>
+</main>
+
+<script>
+  // Вставь сюда свой Public Key.
+  // Не вставляй Private Key!
+  const VAPID_PUBLIC_KEY = 'ВСТАВЬ_СЮДА_PUBLIC_KEY';
+
+  const subscribeBtn = document.getElementById('subscribeBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const statusBox = document.getElementById('status');
+  const resultBox = document.getElementById('result');
+  const subscriptionBox = document.getElementById('subscription');
+
+  function setStatus(message) {
+    statusBox.textContent = message;
+  }
+
+  function decodeBase64Url(value) {
+    const padding = '='.repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const raw = atob(base64);
+    const bytes = new Uint8Array(raw.length);
+
+    for (let i = 0; i < raw.length; i++) {
+      bytes[i] = raw.charCodeAt(i);
+    }
+
+    return bytes;
+  }
+
+  async function subscribe() {
+    subscribeBtn.disabled = true;
+    setStatus('Проверяем браузер…');
+
+    try {
+      if (!('serviceWorker' in navigator)) {
+        throw new Error('Этот браузер не поддерживает Service Worker.');
+      }
+
+      if (!('PushManager' in window)) {
+        throw new Error(
+          'Этот браузер не поддерживает Web Push. ' +
+          'На iPhone попробуй добавить сайт на экран «Домой» ' +
+          'и открыть его оттуда.'
+        );
+      }
+
+      if (!('Notification' in window)) {
+        throw new Error('Уведомления не поддерживаются браузером.');
+      }
+
+      if (
+        !VAPID_PUBLIC_KEY ||
+        VAPID_PUBLIC_KEY === 'ВСТАВЬ_СЮДА_PUBLIC_KEY'
+      ) {
+        throw new Error('Сначала вставь свой VAPID Public Key в код.');
+      }
+
+      if (!window.isSecureContext) {
+        throw new Error('Нужен HTTPS. Открой опубликованный сайт GitHub Pages.');
+      }
+
+      setStatus('Регистрируем Service Worker…');
+
+      const registration = await navigator.serviceWorker.register(
+        './sw.js',
+        { scope: './' }
+      );
+
+      await navigator.serviceWorker.ready;
+
+      let permission = Notification.permission;
+
+      if (permission === 'default') {
+        permission = await Notification.requestPermission();
+      }
+
+      if (permission !== 'granted') {
+        throw new Error(
+          'Разрешение не предоставлено. Разреши уведомления в настройках браузера.'
+        );
+      }
+
+      setStatus('Создаём подписку устройства…');
+
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeBase64Url(VAPID_PUBLIC_KEY)
+        });
+      }
+
+      const json = JSON.stringify(subscription.toJSON(), null, 2);
+
+      subscriptionBox.value = json;
+      resultBox.hidden = false;
+      copyBtn.hidden = false;
+
+      setStatus(
+        'Подписка создана на этом устройстве. ' +
+        'Автоматическая отправка ещё не настроена.'
+      );
+    } catch (error) {
+      setStatus('Не удалось подключить уведомления:\n' + error.message);
+    } finally {
+      subscribeBtn.disabled = false;
+    }
+  }
+
+  subscribeBtn.addEventListener('click', subscribe);
+
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(subscriptionBox.value);
+      setStatus(
+        'Подписка скопирована. Пока не отправляй её в чат ' +
+        'и не публикуй в репозитории.'
+      );
+    } catch (error) {
+      subscriptionBox.focus();
+      subscriptionBox.select();
+      setStatus('Выдели текст подписки и скопируй его вручную.');
+    }
+  });
+</script>
+</body>
+</html>
