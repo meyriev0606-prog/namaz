@@ -795,7 +795,7 @@
       </div>
       <div class="qibla-hint" id="qiblaHint">
         <b>Как пользоваться:</b><br>
-        Положите телефон горизонтально и поверните его так, чтобы зелёная стрелка указывала вверх — это направление на Мекку.
+        Поверните телефон так, чтобы зелёная стрелка указывала вверх — это направление на Мекку. Работает в любом положении телефона.
       </div>
     </div>
   </div>
@@ -925,7 +925,7 @@
         </select>
       </div>
     </div>
-    <div class="footer">Seynaro v1.9 · iOS Compass Fix</div>
+    <div class="footer">Seynaro v1.9 · Компас в любом положении</div>
   </div>
 
 </div>
@@ -960,7 +960,7 @@
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
 window.addEventListener('load', function() {
-  console.log('=== SEYNARO v1.9 (iOS compass fix) ===');
+  console.log('=== SEYNARO v1.9 (compass any position) ===');
 
   if (typeof adhan === 'undefined') {
     document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
@@ -981,8 +981,6 @@ window.addEventListener('load', function() {
   const WEEKDAYS_RU = ['вс','пн','вт','ср','чт','пт','сб'];
 
   const $ = id => document.getElementById(id);
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
   let prayerTimes = null;
   let countdownInterval = null;
@@ -993,7 +991,6 @@ window.addEventListener('load', function() {
   let deviceHeading = 0;
   let manualHeading = null;
   let hasCompass = false;
-  let compassListenerAttached = false;
   let calendarYear = new Date().getFullYear();
   let calendarMonth = new Date().getMonth();
   let calendarData = [];
@@ -1080,9 +1077,7 @@ window.addEventListener('load', function() {
   // ============ ГЕОЛОКАЦИЯ ============
   function updateGeoBadge() {
     const badge = $('geoBadge');
-    if (badge) {
-      badge.style.display = isGpsLocation ? 'inline-block' : 'none';
-    }
+    if (badge) badge.style.display = isGpsLocation ? 'inline-block' : 'none';
   }
 
   function tryGeolocation() {
@@ -1091,12 +1086,10 @@ window.addEventListener('load', function() {
       showToast('Браузер не поддерживает геолокацию');
       return;
     }
-
     if (btn) {
       btn.classList.add('loading');
       btn.textContent = '🛰 Определяем…';
     }
-
     const timeout = setTimeout(() => {
       if (btn) {
         btn.classList.remove('loading');
@@ -1112,24 +1105,18 @@ window.addEventListener('load', function() {
           btn.classList.remove('loading');
           btn.textContent = '📍 Определить моё местоположение';
         }
-
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
         const coords = lat.toFixed(4) + ',' + lon.toFixed(4);
-
         localStorage.setItem('namaz_city', coords);
         localStorage.setItem('namaz_gps', '1');
         isGpsLocation = true;
-
         const sel = $('citySelect');
         if (sel) sel.selectedIndex = -1;
-
         updateGeoBadge();
         calculate(lat, lon);
         if ($('page-calendar').classList.contains('active')) renderCalendar();
-
         showToast('✅ Местоположение определено');
-        console.log('📍 GPS координаты:', coords);
       },
       (err) => {
         clearTimeout(timeout);
@@ -1137,14 +1124,11 @@ window.addEventListener('load', function() {
           btn.classList.remove('loading');
           btn.textContent = '📍 Определить моё местоположение';
         }
-
         let msg = 'Не удалось определить местоположение';
         if (err.code === 1) msg = 'Доступ к геолокации запрещён';
         else if (err.code === 2) msg = 'Геолокация недоступна';
         else if (err.code === 3) msg = 'Время ожидания истекло';
-
         showToast(msg);
-        console.warn('Geo error:', err.message);
       },
       { enableHighAccuracy: false, timeout: 9000, maximumAge: 600000 }
     );
@@ -1188,7 +1172,6 @@ window.addEventListener('load', function() {
     } catch (e) {}
     $('dateInfo').style.display = 'block';
     updateGeoBadge();
-
     const next = prayerTimes.nextPrayer();
     let html = '';
     for (const key of PRAYER_ORDER) {
@@ -1388,21 +1371,63 @@ window.addEventListener('load', function() {
     if ($('qiblaArrow')) $('qiblaArrow').style.transform = `rotate(${qiblaBearing - heading}deg)`;
   }
 
+  // ===== Компас в любом положении телефона =====
   function handleOrientation(e) {
     let heading = null;
-    // iOS Safari возвращает webkitCompassHeading (уже в градусах от севера)
+
+    // iOS: webkitCompassHeading — уже готовый курс, работает в любом положении
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
       heading = e.webkitCompassHeading;
-    }
-    // Android и другие: alpha — угол от севера против часовой
-    else if (e.alpha !== null && e.alpha !== undefined) {
-      heading = 360 - e.alpha;
+    } else if (e.alpha !== null && e.alpha !== undefined) {
+      // Android и другие браузеры
+      const alpha = e.alpha;
+      const beta = e.beta || 0;
+      const gamma = e.gamma || 0;
+
+      // Компенсация положения телефона:
+      // - Если телефон горизонтально: heading = 360 - alpha
+      // - Если вертикально: нужна коррекция через beta и gamma
+      let compassHeading;
+
+      const betaRad = beta * Math.PI / 180;
+      const gammaRad = gamma * Math.PI / 180;
+
+      if (Math.abs(beta) < 25) {
+        // Телефон почти горизонтально — простая формула
+        compassHeading = 360 - alpha;
+      } else {
+        // Телефон наклонён — используем проекцию
+        const sinBeta = Math.sin(betaRad);
+        const cosBeta = Math.cos(betaRad);
+        const sinGamma = Math.sin(gammaRad);
+        const cosGamma = Math.cos(gammaRad);
+
+        // Вектор, указывающий на север, в системе координат телефона
+        const x = -sinBeta * cosGamma;
+        const y = sinGamma;
+
+        compassHeading = Math.atan2(x, y) * 180 / Math.PI;
+        if (compassHeading < 0) compassHeading += 360;
+
+        // Если альфа известна — используем её как основу
+        if (!isNaN(alpha)) {
+          // Комбинируем: базовый курс alpha + компенсация
+          const compensation = (alpha + 360) % 360;
+          compassHeading = (compassHeading + compensation) % 360;
+        }
+      }
+
+      heading = compassHeading;
     }
 
     if (heading !== null && !isNaN(heading)) {
+      heading = (heading + 360) % 360;
+
+      // Плавное сглаживание
       const diff = heading - deviceHeading;
       const sm = diff > 180 ? diff - 360 : diff < -180 ? diff + 360 : diff;
-      deviceHeading = (deviceHeading + sm * 0.3 + 360) % 360;
+      deviceHeading = (deviceHeading + sm * 0.35 + 360) % 360;
+
       hasCompass = true;
       manualHeading = null;
       updateCompass();
@@ -1410,38 +1435,18 @@ window.addEventListener('load', function() {
     }
   }
 
-  // Прикрепляем слушатель один раз
-  function attachCompassListener() {
-    if (compassListenerAttached) return;
-    compassListenerAttached = true;
-    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+  function attachCompassListeners() {
+    // deviceorientationabsolute — точнее (только Android)
+    if ('ondeviceorientationabsolute' in window) {
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+      console.log('✅ Используем deviceorientationabsolute');
+    }
+    // Обычный deviceorientation — для совместимости
     window.addEventListener('deviceorientation', handleOrientation, true);
-    console.log('📡 Слушатель компаса прикреплён');
-  }
 
-  // Инициализация компаса
-  function startCompass() {
-    if (typeof DeviceOrientationEvent === 'undefined') {
-      updateAccuracy('bad', 'Датчик не поддерживается');
-      return;
-    }
-
-    const needsPermission = typeof DeviceOrientationEvent.requestPermission === 'function';
-
-    if (needsPermission) {
-      // iOS: разрешение нужно запрашивать по клику пользователя
-      if (isIOS) {
-        updateAccuracy('', 'Нажмите «Включить компас»');
-      } else {
-        updateAccuracy('', 'Нажмите «Включить компас»');
-      }
-      return;
-    }
-
-    // Android и другие: датчик доступен сразу
-    attachCompassListener();
     setTimeout(() => {
       if (!hasCompass) {
+        const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
         if (isMobile) {
           updateAccuracy('', 'Потрясите телефон для калибровки');
         } else {
@@ -1451,33 +1456,34 @@ window.addEventListener('load', function() {
     }, 2500);
   }
 
-  // Запрос разрешения (вызывается по клику)
-  function requestCompassPermission() {
+  function startCompass() {
     if (typeof DeviceOrientationEvent === 'undefined') {
-      showToast('Датчик не поддерживается');
+      updateAccuracy('bad', 'Датчик не поддерживается');
       return;
     }
 
-    // Если разрешение не требуется (Android) — просто включаем
+    // iOS требует разрешения по клику
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      updateAccuracy('', 'Нажмите «Включить компас» для доступа');
+      return;
+    }
+
+    // Android — пробуем сразу
+    attachCompassListeners();
+  }
+
+  function requestCompassPermission() {
     if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
-      attachCompassListener();
-      if (!hasCompass) {
-        updateAccuracy('', isMobile ? 'Потрясите телефон' : 'Вращайте мышкой');
-      } else {
-        updateAccuracy('good', 'Компас активен');
-      }
-      showToast('Компас включён');
+      // Android — просто включаем
+      attachCompassListeners();
       return;
     }
-
-    // iOS — запрашиваем разрешение
     DeviceOrientationEvent.requestPermission()
       .then(r => {
         if (r === 'granted') {
-          attachCompassListener();
+          attachCompassListeners();
           updateAccuracy('good', 'Компас активен');
           showToast('✅ Компас включён');
-          console.log('✅ Разрешение компаса получено');
         } else {
           updateAccuracy('bad', 'Доступ запрещён');
           showToast('Доступ к компасу запрещён');
@@ -1486,7 +1492,6 @@ window.addEventListener('load', function() {
       .catch(err => {
         console.warn('Compass permission error:', err);
         updateAccuracy('bad', 'Ошибка доступа');
-        showToast('Ошибка доступа к компасу');
       });
   }
 
@@ -1836,8 +1841,6 @@ window.addEventListener('load', function() {
         if (page === 'tracker') renderTracker();
       });
     });
-
-    // Кнопка "Включить компас" — по клику запрашивает разрешение (iOS!)
     if ($('calibrateBtn')) {
       $('calibrateBtn').addEventListener('click', function() {
         if (hasCompass) {
@@ -1846,11 +1849,11 @@ window.addEventListener('load', function() {
           updateAccuracy('good', 'Компас активен');
           showToast('Компас активен');
         } else {
+          // iOS: запрос разрешения; Android: переприсоединяем
           requestCompassPermission();
         }
       });
     }
-
     if ($('prevMonth')) $('prevMonth').addEventListener('click', () => changeMonth(-1));
     if ($('nextMonth')) $('nextMonth').addEventListener('click', () => changeMonth(1));
     if ($('downloadCsv')) $('downloadCsv').addEventListener('click', downloadCSV);
