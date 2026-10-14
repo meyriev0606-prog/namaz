@@ -15,6 +15,24 @@
 <meta name="description" content="Seynaro — время намаза, Кибла, трекер и уведомления">
 
 <title>Время намаза</title>
+
+<!-- OneSignal Push Notifications -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "240c6573-e2f3-432d-8737-28856e16cfc5",
+      serviceWorkerPath: "push/onesignal/OneSignalSDKWorker.js",
+      serviceWorkerParam: { scope: "/namaz/push/onesignal/" },
+      allowLocalhostAsSecureOrigin: true,
+      notifyButton: { enable: false },
+      welcomeNotification: { disable: true }
+    });
+    console.log('✅ OneSignal инициализирован');
+  });
+</script>
+
 <style>
   :root {
     --bg-1: #0a0f1f;
@@ -88,7 +106,6 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Геолокация */
   .geo-btn {
     width: 100%;
     padding: 13px 16px;
@@ -131,14 +148,10 @@
   .date-info b { color: var(--text); }
   .hijri { display: block; margin-top: 3px; color: var(--text-dim); font-size: 11px; }
   .geo-badge {
-    display: inline-block;
-    font-size: 10px;
-    color: var(--accent);
-    background: rgba(99,102,241,0.15);
-    padding: 2px 8px;
-    border-radius: 10px;
-    margin-top: 4px;
-    font-weight: 600;
+    display: inline-block; font-size: 10px;
+    color: var(--accent); background: rgba(99,102,241,0.15);
+    padding: 2px 8px; border-radius: 10px;
+    margin-top: 4px; font-weight: 600;
   }
 
   .next-card {
@@ -181,7 +194,6 @@
   .prayer-time { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .prayer-row.active .prayer-time { color: #a5b4fc; }
 
-  /* КОМПАС */
   .qibla-wrap { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
   .compass-container {
     position: relative; width: 300px; height: 300px;
@@ -286,7 +298,6 @@
   .accuracy-dot.good { background: #10b981; }
   .accuracy-dot.bad { background: #ef4444; }
 
-  /* УВЕДОМЛЕНИЯ */
   .notif-hero {
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
     border-radius: 22px; padding: 26px 24px;
@@ -311,7 +322,6 @@
     font-weight: 600; margin-bottom: 10px;
   }
 
-  /* КАЛЕНДАРЬ */
   .calendar-nav {
     display: flex; justify-content: space-between; align-items: center;
     background: var(--panel);
@@ -386,7 +396,6 @@
   .cal-legend-dot.today { background: rgba(99,102,241,0.6); }
   .cal-legend-dot.friday { background: rgba(16,185,129,0.6); }
 
-  /* ТРЕКЕР */
   .tracker-progress {
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -491,7 +500,6 @@
   [data-theme="day"] .tracker-hint { color: #4338ca; }
   .tracker-hint b { color: var(--text); }
 
-  /* ОБЩИЕ */
   .settings-group {
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -951,7 +959,7 @@
               Автор — <b style="color: var(--accent);">Meyriev Magomed</b>
             </div>
             <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
-              Версия 1.9 · 2026
+              Версия 2.0 · 2026
             </div>
           </div>
         </div>
@@ -992,7 +1000,7 @@
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
 window.addEventListener('load', function() {
-  console.log('=== SEYNARO v1.9 ===');
+  console.log('=== SEYNARO v2.0 (OneSignal) ===');
 
   if (typeof adhan === 'undefined') {
     document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
@@ -1405,37 +1413,30 @@ window.addEventListener('load', function() {
 
   function handleOrientation(e) {
     let heading = null;
-
     if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
       heading = e.webkitCompassHeading;
     } else if (e.alpha !== null && e.alpha !== undefined) {
       const alpha = e.alpha;
       const beta = e.beta || 0;
       const gamma = e.gamma || 0;
-
       let compassHeading;
       const betaRad = beta * Math.PI / 180;
       const gammaRad = gamma * Math.PI / 180;
-
       if (Math.abs(beta) < 25) {
         compassHeading = 360 - alpha;
       } else {
         const sinBeta = Math.sin(betaRad);
         const cosGamma = Math.cos(gammaRad);
         const sinGamma = Math.sin(gammaRad);
-
         const x = -sinBeta * cosGamma;
         const y = sinGamma;
-
         compassHeading = Math.atan2(x, y) * 180 / Math.PI;
         if (compassHeading < 0) compassHeading += 360;
-
         if (!isNaN(alpha)) {
           const compensation = (alpha + 360) % 360;
           compassHeading = (compassHeading + compensation) % 360;
         }
       }
-
       heading = compassHeading;
     }
 
@@ -1456,7 +1457,6 @@ window.addEventListener('load', function() {
       window.addEventListener('deviceorientationabsolute', handleOrientation, true);
     }
     window.addEventListener('deviceorientation', handleOrientation, true);
-
     setTimeout(() => {
       if (!hasCompass) {
         const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -1905,7 +1905,7 @@ window.addEventListener('load', function() {
       if (settings.theme === 'auto') applyTheme();
     }, 15 * 60 * 1000);
 
-    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.9 (Meyriev Magomed) ЗАВЕРШЕНА ===');
+    console.log('=== ИНИЦИАЛИЗАЦИЯ v2.0 (OneSignal) ЗАВЕРШЕНА ===');
   }
 
   init();
@@ -1968,83 +1968,17 @@ window.addEventListener('load', function() {
 })();
 </script>
 
-<!-- PWA: регистрация Service Worker + автоперезагрузка + кнопка установки -->
+<!-- PWA: регистрация Service Worker + кнопка установки -->
 <script>
 (function() {
-  // ===== АВТООБНОВЛЕНИЕ =====
   if ('serviceWorker' in navigator) {
-    let refreshing = false;
-
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      console.log('🔄 Активирована новая версия — перезагружаем…');
-      showUpdateToast();
-      setTimeout(() => window.location.reload(), 800);
-    });
-
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js')
-        .then(reg => {
-          console.log('✅ Service Worker зарегистрирован:', reg.scope);
-
-          // Проверка обновлений каждые 10 минут
-          setInterval(() => {
-            reg.update().then(() => {
-              console.log('🔍 Проверка обновлений');
-            }).catch(() => {});
-          }, 10 * 60 * 1000);
-
-          reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            if (!newWorker) return;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('💡 Новая версия установлена, активируется…');
-              }
-            });
-          });
-        })
+        .then(reg => console.log('✅ Service Worker зарегистрирован:', reg.scope))
         .catch(err => console.error('❌ Ошибка SW:', err));
     });
   }
 
-  function showUpdateToast() {
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px; left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      padding: 12px 22px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      z-index: 9999;
-      box-shadow: 0 8px 24px rgba(99,102,241,0.5);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      transition: transform 0.3s ease;
-      max-width: 90vw;
-      letter-spacing: 0.3px;
-    `;
-    toast.innerHTML = `
-      <span style="font-size: 18px; display: inline-block; animation: spin 0.8s linear infinite;">🔄</span>
-      <span>Обновляем приложение…</span>
-    `;
-    const style = document.createElement('style');
-    style.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
-    document.head.appendChild(style);
-    document.body.appendChild(toast);
-    requestAnimationFrame(() => {
-      toast.style.transform = 'translateX(-50%) translateY(0)';
-    });
-  }
-
-  // ===== УСТАНОВКА PWA =====
   let deferredPrompt = null;
   const btn = document.getElementById('installBtn');
 
@@ -2072,9 +2006,5 @@ window.addEventListener('load', function() {
   });
 })();
 </script>
-
-<!-- GoatCounter — счётчик посещений -->
-<script data-goatcounter="https://meyriev.goatcounter.com/count"
-        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
