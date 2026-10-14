@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -8,6 +8,7 @@
   <title>Seynaro — подключение уведомлений</title>
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       padding: 24px 16px;
@@ -16,6 +17,7 @@
       color: #f3f6fc;
       font-family: Arial, sans-serif;
     }
+
     main {
       max-width: 540px;
       margin: 30px auto;
@@ -24,8 +26,10 @@
       border: 1px solid #344158;
       border-radius: 20px;
     }
+
     h1 { margin-top: 0; font-size: 26px; }
     p { color: #c3cede; line-height: 1.6; }
+
     button {
       width: 100%;
       padding: 15px;
@@ -38,7 +42,9 @@
       font-weight: bold;
       cursor: pointer;
     }
+
     button:disabled { opacity: .5; }
+
     textarea {
       width: 100%;
       min-height: 150px;
@@ -49,6 +55,7 @@
       color: white;
       overflow-wrap: anywhere;
     }
+
     #status {
       margin-top: 16px;
       padding: 12px;
@@ -57,6 +64,7 @@
       white-space: pre-wrap;
       overflow-wrap: anywhere;
     }
+
     .hint { font-size: 13px; }
     a { color: #8eb8ff; }
   </style>
@@ -65,7 +73,7 @@
 <main>
   <h1>🔔 Seynaro</h1>
   <p>Подключение уведомлений о времени намаза.</p>
-  <p>Разреши уведомления, чтобы подготовить устройство к получению напоминаний.</p>
+  <p>Нажми кнопку и разреши уведомления в браузере.</p>
 
   <button id="subscribeBtn">Подключить уведомления</button>
   <button id="copyBtn" hidden>Скопировать подписку</button>
@@ -77,16 +85,16 @@
   <div id="result" hidden>
     <p><strong>Данные подписки</strong></p>
     <textarea id="subscription" readonly></textarea>
-    <p class="hint">Не публикуй подписку в открытом доступе.</p>
+    <p class="hint">Не публикуй данные подписки в открытом доступе.</p>
   </div>
 
   <p class="hint"><a href="./">Вернуться на Seynaro</a></p>
 </main>
 
 <script>
-  // Вставь настоящий VAPID PUBLIC KEY между кавычками.
-  // PRIVATE KEY сюда не вставлять.
-  const VAPID_PUBLIC_KEY = 'BNtr_niK_grZqK6LMRnuQQqojQWqBx8tYYhQrznq3icpfuQa-3pX4U_p7ugdYHongixZrW8SHF6JrUao8CWgsMs';
+  // Public Key. Последние две буквы замени на свои.
+  const VAPID_PUBLIC_KEY =
+    'BCzLGtBynIij9lETBxYVEjvLKN6mAjoSe1oztAJRBFgON6RJg9J-VyunS2osZMq77KmMaxNNhhUc1Rv1wf8c8sw';
 
   const subscribeBtn = document.getElementById('subscribeBtn');
   const copyBtn = document.getElementById('copyBtn');
@@ -103,6 +111,7 @@
     const base64 = (value + padding)
       .replace(/-/g, '+')
       .replace(/_/g, '/');
+
     const raw = atob(base64);
     const bytes = new Uint8Array(raw.length);
 
@@ -117,27 +126,27 @@
     subscribeBtn.disabled = true;
 
     try {
+      if (
+        !VAPID_PUBLIC_KEY ||
+        VAPID_PUBLIC_KEY.includes('XX')
+      ) {
+        throw new Error('Замени XX на последние две буквы Public Key.');
+      }
+
+      if (!window.isSecureContext) {
+        throw new Error('Открой страницу через HTTPS.');
+      }
+
       if (!('serviceWorker' in navigator)) {
         throw new Error('Браузер не поддерживает Service Worker.');
       }
 
       if (!('PushManager' in window)) {
-        throw new Error('Браузер не поддерживает Web Push.');
+        throw new Error('Браузер не поддерживает Push-уведомления.');
       }
 
       if (!('Notification' in window)) {
-        throw new Error('Уведомления не поддерживаются браузером.');
-      }
-
-      if (
-        !VAPID_PUBLIC_KEY ||
-        VAPID_PUBLIC_KEY === 'ВСТАВЬ_СЮДА_СВОЙ_PUBLIC_KEY'
-      ) {
-        throw new Error('Вставь настоящий публичный ключ в код страницы.');
-      }
-
-      if (!window.isSecureContext) {
-        throw new Error('Открой опубликованную страницу через HTTPS.');
+        throw new Error('Браузер не поддерживает уведомления.');
       }
 
       setStatus('Регистрируем Service Worker…');
@@ -162,6 +171,24 @@
 
       let subscription = await registration.pushManager.getSubscription();
 
+      if (subscription) {
+        const existingKey = subscription.options.applicationServerKey;
+
+        if (existingKey) {
+          const oldBytes = new Uint8Array(existingKey);
+          const newBytes = decodeBase64Url(VAPID_PUBLIC_KEY);
+
+          const sameKey =
+            oldBytes.length === newBytes.length &&
+            oldBytes.every((byte, index) => byte === newBytes[index]);
+
+          if (!sameKey) {
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        }
+      }
+
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -169,7 +196,12 @@
         });
       }
 
-      subscriptionBox.value = JSON.stringify(subscription.toJSON(), null, 2);
+      subscriptionBox.value = JSON.stringify(
+        subscription.toJSON(),
+        null,
+        2
+      );
+
       resultBox.hidden = false;
       copyBtn.hidden = false;
 
@@ -177,6 +209,7 @@
         'Подписка создана на этом устройстве. ' +
         'Автоматическая отправка напоминаний ещё не настроена.'
       );
+
     } catch (error) {
       setStatus('Не удалось подключить уведомления:\n' + error.message);
     } finally {
@@ -189,7 +222,7 @@
   copyBtn.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(subscriptionBox.value);
-      setStatus('Подписка скопирована. Не публикуй её в открытом доступе.');
+      setStatus('Подписка скопирована.');
     } catch (error) {
       subscriptionBox.focus();
       subscriptionBox.select();
@@ -199,3 +232,4 @@
 </script>
 </body>
 </html>
+```
