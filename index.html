@@ -992,7 +992,7 @@
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
 window.addEventListener('load', function() {
-  console.log('=== SEYNARO v1.9 (Meyriev Magomed) ===');
+  console.log('=== SEYNARO v1.9 (compass any position) ===');
 
   if (typeof adhan === 'undefined') {
     document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
@@ -1912,12 +1912,9 @@ window.addEventListener('load', function() {
 });
 </script>
 
-<!-- Тост автора при первом запуске -->
+<!-- Тост автора при каждом заходе -->
 <script>
 (function() {
-  const KEY = 'seynaro_about_shown_v1';
-  if (localStorage.getItem(KEY)) return;
-
   setTimeout(() => {
     const toast = document.createElement('div');
     toast.style.cssText = `
@@ -1963,12 +1960,11 @@ window.addEventListener('load', function() {
       toast.style.opacity = '0';
       toast.style.transform = 'translateX(-50%) translateY(20px)';
       setTimeout(() => toast.remove(), 400);
-      localStorage.setItem(KEY, '1');
     };
 
     toast.addEventListener('click', hide);
-    setTimeout(() => { if (toast.parentNode) hide(); }, 6000);
-  }, 2000);
+    setTimeout(() => { if (toast.parentNode) hide(); }, 5000);
+  }, 1500);
 })();
 </script>
 
