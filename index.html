@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6366f1">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Намаз">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Seynaro — время намаза, Кибла, трекер и уведомления">
+
+<title>Время намаза</title>
+<style>
+  :root {
+    --bg-1: #0a0f1f;
+    --bg-2: #0f172a;
+    --bg-3: #1e293b;
+    --panel: rgba(255,255,255,0.04);
+    --panel-strong: rgba(255,255,255,0.06);
+    --panel-border: rgba(255,255,255,0.06);
+    --panel-border-strong: rgba(255,255,255,0.1);
+    --text: #ffffff;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --text-faint: #475569;
+    --nav-bg: rgba(15, 23, 42, 0.95);
+    --input-bg: rgba(255,255,255,0.06);
+    --shadow-color: rgba(0,0,0,0.4);
+    --accent: #6366f1;
+    --accent-2: #8b5cf6;
+  }
+  [data-theme="light"] {
+    --bg-1: #f0f4ff;
+    --bg-2: #e8eefc;
+    --bg-3: #dde5f5;
+    --panel: rgba(255,255,255,0.7);
+    --panel-strong: rgba(255,255,255,0.85);
+    --panel-border: rgba(15,23,42,0.08);
+    --panel-border-strong: rgba(15,23,42,0.15);
+    --text: #0f172a;
+    --text-muted: #475569;
+    --text-dim: #64748b;
+    --text-faint: #94a3b8;
+    --nav-bg: rgba(255,255,255,0.95);
+    --input-bg: rgba(255,255,255,0.9);
+    --shadow-color: rgba(15,23,42,0.1);
+  }
+  [data-theme="morning"] {
+    --bg-1: #fff7e8; --bg-2: #fdebd0; --bg-3: #fcd9a8;
+    --text: #3b2412; --text-muted: #7a5c3b; --text-dim: #9c7a56; --text-faint: #bca079;
+    --nav-bg: rgba(255, 247, 232, 0.95);
+    --panel: rgba(255,255,255,0.6); --panel-strong: rgba(255,255,255,0.8);
+    --panel-border: rgba(59,36,18,0.08); --panel-border-strong: rgba(59,36,18,0.15);
+    --input-bg: rgba(255,255,255,0.85); --shadow-color: rgba(59,36,18,0.1);
+  }
+  [data-theme="day"] {
+    --bg-1: #eaf4ff; --bg-2: #d4e9fa; --bg-3: #b9d9f0;
+    --text: #0c1e35; --text-muted: #475569; --text-dim: #64748b; --text-faint: #94a3b8;
+    --nav-bg: rgba(234, 244, 255, 0.95);
+    --panel: rgba(255,255,255,0.7); --panel-strong: rgba(255,255,255,0.85);
+    --panel-border: rgba(12,30,53,0.08); --panel-border-strong: rgba(12,30,53,0.15);
+    --input-bg: rgba(255,255,255,0.9); --shadow-color: rgba(12,30,53,0.1);
+  }
+  [data-theme="evening"] {
+    --bg-1: #2a1a3a; --bg-2: #3d1f42; --bg-3: #4a2a3e;
+    --text: #ffffff; --text-muted: #cbd5e1; --text-dim: #94a3b8; --text-faint: #64748b;
+    --nav-bg: rgba(42, 26, 58, 0.95);
+    --panel: rgba(255,255,255,0.06); --panel-strong: rgba(255,255,255,0.08);
+    --panel-border: rgba(255,255,255,0.08); --panel-border-strong: rgba(255,255,255,0.12);
+    --input-bg: rgba(255,255,255,0.08); --shadow-color: rgba(0,0,0,0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px 16px 100px;
+    transition: background 0.8s ease, color 0.3s ease;
+  }
+  .container { max-width: 480px; margin: 0 auto; }
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h1 { font-size: 20px; font-weight: 700; }
+  .header p { color: var(--text-dim); font-size: 12px; margin-top: 4px; }
+
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .city-wrap { position: relative; margin-bottom: 16px; }
+  .city-select {
+    width: 100%; padding: 14px 40px 14px 16px;
+    background: var(--input-bg); color: var(--text);
+    border: 1px solid var(--panel-border-strong);
+    border-radius: 14px; font-size: 14px;
+    cursor: pointer; appearance: none; -webkit-appearance: none; outline: none;
+  }
+  .city-select option, .city-select optgroup { background: var(--bg-3); color: var(--text); }
+  .city-icon {
+    position: absolute; right: 16px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim); pointer-events: none; font-size: 12px;
+  }
+  .date-info { text-align: center; color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
+  .date-info b { color: var(--text); }
+  .hijri { display: block; margin-top: 3px; color: var(--text-dim); font-size: 11px; }
+
+  .next-card {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    border-radius: 22px; padding: 26px 24px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(99,102,241,0.35);
+    margin-bottom: 20px; color: #fff;
+  }
+  .next-label { font-size: 11px; opacity: 0.85; letter-spacing: 1.5px; font-weight: 600; text-transform: uppercase; }
+  .next-name { font-size: 34px; font-weight: 800; margin: 8px 0 4px; }
+  .next-time { font-size: 44px; font-weight: 800; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
+  .countdown { font-size: 13px; opacity: 0.9; margin-top: 8px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .prayers-list {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px; overflow: hidden;
+    backdrop-filter: blur(10px);
+  }
+  .prayer-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    position: relative;
+  }
+  .prayer-row:last-child { border-bottom: none; }
+  .prayer-row.active {
+    background: linear-gradient(90deg, rgba(99,102,241,0.25), rgba(139,92,246,0.1));
+    padding-left: 24px;
+  }
+  .prayer-row.active::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: linear-gradient(180deg, #6366f1, #8b5cf6);
+  }
+  .prayer-row.passed { opacity: 0.45; }
+  .prayer-name { display: flex; flex-direction: column; gap: 2px; }
+  .prayer-name b { font-size: 15px; font-weight: 600; }
+  .prayer-name span { color: var(--text-muted); font-size: 11px; font-family: monospace; }
+  .prayer-time { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .prayer-row.active .prayer-time { color: #a5b4fc; }
+
+  /* КОМПАС */
+  .qibla-wrap { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
+  .compass-container {
+    position: relative; width: 300px; height: 300px;
+    margin-bottom: 24px; cursor: grab; user-select: none; touch-action: none;
+  }
+  .compass-container:active { cursor: grabbing; }
+  .compass-bg {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.15), var(--bg-2));
+    border: 2px solid var(--panel-border);
+    box-shadow: 0 20px 60px var(--shadow-color), inset 0 0 60px rgba(99,102,241,0.1);
+  }
+  .compass-dial {
+    position: absolute; inset: 0; border-radius: 50%;
+    transition: transform 0.1s ease-out; will-change: transform;
+  }
+  .compass-tick {
+    position: absolute; top: 0; left: 50%;
+    transform-origin: 50% 150px;
+    width: 2px; height: 8px;
+    background: var(--text-faint);
+    margin-left: -1px; border-radius: 2px;
+  }
+  .compass-tick.major { height: 14px; background: var(--text-dim); }
+  .compass-tick.cardinal { height: 16px; width: 3px; background: var(--text); }
+  .compass-cardinal {
+    position: absolute; top: 0; left: 50%;
+    transform-origin: 50% 150px;
+    font-size: 16px; font-weight: 800; color: var(--text);
+    margin-left: -8px; margin-top: 24px;
+    width: 16px; text-align: center;
+  }
+  .compass-cardinal.n { color: #f87171; }
+  .compass-cardinal.e, .compass-cardinal.s, .compass-cardinal.w { color: var(--text-muted); }
+  .qibla-arrow {
+    position: absolute; inset: 0;
+    display: flex; justify-content: center; align-items: flex-start;
+    pointer-events: none;
+    transition: transform 0.15s ease-out; will-change: transform;
+  }
+  .qibla-arrow-svg {
+    position: absolute; top: 20px; left: 50%;
+    transform: translateX(-50%); width: 60px; height: 110px;
+    filter: drop-shadow(0 4px 12px rgba(16,185,129,0.5));
+  }
+  .compass-center {
+    position: absolute; top: 50%; left: 50%;
+    width: 12px; height: 12px; background: var(--accent);
+    border-radius: 50%; transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 4px rgba(99,102,241,0.3), 0 0 20px rgba(99,102,241,0.8);
+    z-index: 10;
+  }
+  .kaaba-marker {
+    position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%); font-size: 26px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); z-index: 5;
+  }
+  .qibla-info {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px; padding: 20px;
+    width: 100%; display: grid;
+    grid-template-columns: 1fr 1fr; gap: 16px;
+  }
+  .qibla-stat { text-align: center; }
+  .qibla-stat-label {
+    font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px;
+    font-weight: 600; margin-bottom: 6px;
+  }
+  .qibla-stat-value {
+    font-size: 22px; font-weight: 800;
+    color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .qibla-stat-value small { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+  .qibla-hint {
+    margin-top: 16px; padding: 14px 16px;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 12px; font-size: 12px;
+    color: var(--accent); line-height: 1.6; text-align: center;
+  }
+  [data-theme="light"] .qibla-hint,
+  [data-theme="morning"] .qibla-hint,
+  [data-theme="day"] .qibla-hint { color: #4338ca; }
+  .qibla-hint b { color: var(--text); }
+  .btn-calibrate {
+    margin-top: 12px;
+    background: var(--panel-strong);
+    border: 1px solid var(--panel-border-strong);
+    color: var(--text-muted); padding: 10px 20px;
+    border-radius: 10px; font-size: 12px;
+    font-weight: 500; cursor: pointer; font-family: inherit;
+  }
+  .accuracy-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 8px; font-size: 11px; color: var(--text-dim);
+    background: var(--panel);
+    padding: 6px 12px; border-radius: 20px;
+  }
+  .accuracy-dot { width: 8px; height: 8px; border-radius: 50%; background: #f2b84b; }
+  .accuracy-dot.good { background: #10b981; }
+  .accuracy-dot.bad { background: #ef4444; }
+
+  /* УВЕДОМЛЕНИЯ */
+  .notif-hero {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    border-radius: 22px; padding: 26px 24px;
+    text-align: center; margin-bottom: 20px;
+    box-shadow: 0 20px 50px rgba(99,102,241,0.35); color: #fff;
+  }
+  .notif-hero-icon { font-size: 44px; margin-bottom: 10px; }
+  .notif-hero-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+  .notif-hero-sub { font-size: 13px; opacity: 0.9; margin-bottom: 16px; }
+  .notif-hero-btn {
+    background: #fff; color: var(--accent);
+    border: none; padding: 12px 24px;
+    border-radius: 12px; font-size: 14px;
+    font-weight: 700; cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+  }
+  .notif-hero-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .notif-status-badge {
+    display: inline-block; padding: 4px 12px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px; font-size: 11px;
+    font-weight: 600; margin-bottom: 10px;
+  }
+
+  /* КАЛЕНДАРЬ */
+  .calendar-nav {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px; padding: 12px 16px; margin-bottom: 16px;
+  }
+  .cal-nav-btn {
+    background: var(--panel-strong);
+    border: 1px solid var(--panel-border-strong);
+    color: var(--text); width: 36px; height: 36px;
+    border-radius: 10px; font-size: 16px;
+    cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cal-nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .cal-month-title {
+    text-align: center; flex: 1;
+    font-size: 15px; font-weight: 700; color: var(--text);
+  }
+  .cal-month-title small {
+    display: block; color: var(--text-dim);
+    font-size: 11px; font-weight: 500; margin-top: 2px;
+  }
+  .calendar-download { margin-bottom: 16px; display: flex; gap: 8px; }
+  .cal-download-btn {
+    flex: 1; background: rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.3);
+    color: var(--accent); padding: 10px;
+    border-radius: 10px; font-size: 12px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .calendar-table {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px; overflow: hidden;
+  }
+  .cal-header-row {
+    display: grid; grid-template-columns: 62px repeat(5, 1fr);
+    gap: 0; padding: 10px 8px;
+    background: rgba(99,102,241,0.15);
+    font-size: 9px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--accent);
+    font-weight: 800; text-align: center;
+  }
+  .cal-row {
+    display: grid; grid-template-columns: 62px repeat(5, 1fr);
+    gap: 0; padding: 10px 8px;
+    border-bottom: 1px solid var(--panel-border);
+    font-size: 12px; font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+  .cal-row:last-child { border-bottom: none; }
+  .cal-row.today {
+    background: linear-gradient(90deg, rgba(99,102,241,0.2), rgba(139,92,246,0.05));
+    font-weight: 700;
+  }
+  .cal-row.friday { background: rgba(16,185,129,0.06); }
+  .cal-row.friday .cal-date { color: #10b981; }
+  .cal-date { font-weight: 600; color: var(--text); text-align: left; padding-left: 4px; }
+  .cal-date small { display: block; font-size: 9px; color: var(--text-dim); font-weight: 400; margin-top: 1px; }
+  .cal-time { color: var(--text-muted); }
+  .cal-time.highlight { color: #f87171; }
+  .cal-time.sunrise { color: var(--text-dim); }
+  .cal-legend {
+    margin-top: 12px; padding: 12px 16px;
+    background: var(--panel); border-radius: 12px;
+    font-size: 11px; color: var(--text-muted); line-height: 1.7;
+  }
+  .cal-legend b { color: var(--text); }
+  .cal-legend-item { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .cal-legend-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .cal-legend-dot.today { background: rgba(99,102,241,0.6); }
+  .cal-legend-dot.friday { background: rgba(16,185,129,0.6); }
+
+  /* ТРЕКЕР */
+  .tracker-progress {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px; padding: 20px; margin-bottom: 16px;
+  }
+  .tp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .tp-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; }
+  .tp-count { font-size: 16px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .tp-bar { height: 10px; background: var(--panel-strong); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+  .tp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 6px; transition: width 0.4s ease;
+  }
+  .tp-fill.low { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .tp-fill.zero { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .tp-sub { font-size: 11px; color: var(--text-dim); }
+  .tp-sub b { color: var(--text); }
+
+  .tracker-prayers { margin-bottom: 16px; }
+  .tracker-item {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px; padding: 16px 18px; margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    transition: 0.2s;
+  }
+  .tracker-item.done { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); }
+  .tracker-item.missed { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.25); opacity: 0.8; }
+  .tracker-left { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+  .tracker-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--panel-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+  }
+  .tracker-item.done .tracker-icon { background: rgba(16,185,129,0.2); }
+  .tracker-item.missed .tracker-icon { background: rgba(239,68,68,0.15); }
+  .tracker-info { min-width: 0; }
+  .tracker-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+  .tracker-time { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .tracker-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .tracker-btn {
+    width: 40px; height: 40px; border-radius: 10px;
+    border: 1px solid var(--panel-border-strong);
+    background: var(--panel); color: var(--text-muted);
+    font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit;
+  }
+  .tracker-btn.active-done {
+    background: #10b981; border-color: #10b981; color: #fff;
+    box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+  }
+  .tracker-btn.active-missed {
+    background: #ef4444; border-color: #ef4444; color: #fff;
+    box-shadow: 0 4px 12px rgba(239,68,68,0.4);
+  }
+  .tracker-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px; padding: 16px; text-align: center;
+  }
+  .stat-card-icon { font-size: 24px; margin-bottom: 6px; }
+  .stat-card-label {
+    font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    font-weight: 700; margin-bottom: 4px;
+  }
+  .stat-card-value { font-size: 22px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+  .stat-card-value small { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .week-grid {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 16px; padding: 16px; margin-bottom: 16px;
+  }
+  .week-title {
+    font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    font-weight: 700; margin-bottom: 12px;
+  }
+  .week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .week-day {
+    text-align: center; padding: 8px 2px;
+    border-radius: 8px; background: var(--panel-strong);
+  }
+  .week-day-label { font-size: 9px; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; }
+  .week-day-value { font-size: 14px; font-weight: 800; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .week-day.perfect .week-day-value { color: #10b981; }
+  .week-day.good .week-day-value { color: #84cc16; }
+  .week-day.bad .week-day-value { color: #ef4444; }
+  .tracker-hint {
+    padding: 14px 16px;
+    background: rgba(99,102,241,0.1);
+    border: 1px solid rgba(99,102,241,0.2);
+    border-radius: 12px; font-size: 12px;
+    color: var(--accent); line-height: 1.6;
+  }
+  [data-theme="light"] .tracker-hint,
+  [data-theme="morning"] .tracker-hint,
+  [data-theme="day"] .tracker-hint { color: #4338ca; }
+  .tracker-hint b { color: var(--text); }
+
+  /* ОБЩИЕ */
+  .settings-group {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 18px; margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .settings-group-title {
+    padding: 14px 20px 10px;
+    font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    font-weight: 700;
+    border-bottom: 1px solid var(--panel-border);
+  }
+  .settings-row {
+    display: flex; justify-content: space-between;
+    align-items: center; padding: 14px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    gap: 12px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .settings-label small {
+    display: block; color: var(--text-dim); font-size: 11px;
+    margin-top: 2px; font-weight: 400;
+  }
+  .settings-select {
+    background: var(--input-bg); color: var(--text);
+    border: 1px solid var(--panel-border-strong);
+    border-radius: 10px; padding: 8px 12px;
+    font-size: 13px; cursor: pointer;
+    outline: none; max-width: 160px;
+    font-family: inherit;
+  }
+  .settings-select option { background: var(--bg-3); color: var(--text); }
+
+  .toggle {
+    position: relative; width: 44px; height: 24px;
+    background: var(--panel-strong);
+    border-radius: 12px; cursor: pointer;
+    transition: 0.2s; flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; background: #fff;
+    border-radius: 50%; transition: 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle.on::after { transform: translateX(20px); }
+
+  .theme-switcher {
+    display: flex; gap: 6px;
+    background: var(--panel-strong);
+    padding: 4px; border-radius: 12px;
+  }
+  .theme-btn {
+    background: transparent; border: none;
+    color: var(--text-muted); padding: 8px 12px;
+    border-radius: 8px; font-size: 11px;
+    font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: 0.2s; flex: 1;
+  }
+  .theme-btn.active {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+  }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--panel-border);
+    display: flex; justify-content: space-around;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .nav-btn {
+    background: transparent; border: none; color: var(--text-dim);
+    font-family: inherit; font-size: 10px; font-weight: 500;
+    cursor: pointer; padding: 8px 4px; border-radius: 10px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 3px; min-width: 50px;
+  }
+  .nav-btn .icon { font-size: 18px; }
+  .nav-btn.active { color: var(--accent); }
+
+  .status { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+  .status.error { color: #f87171; }
+  .footer { text-align: center; color: var(--text-faint); font-size: 10px; margin-top: 24px; letter-spacing: 0.5px; }
+
+  .toast {
+    position: fixed; bottom: 100px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--accent); color: white;
+    padding: 12px 22px; border-radius: 10px;
+    font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none;
+    transition: 0.3s; z-index: 200;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Кнопка установки PWA */
+  .install-btn {
+    display: none;
+    position: fixed;
+    bottom: 90px;
+    right: 16px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.5);
+    z-index: 999;
+    font-family: inherit;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.2s;
+  }
+  .install-btn:hover { transform: translateY(-2px); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ГЛАВНАЯ -->
+  <div class="page active" id="page-timetable">
+    <div class="header">
+      <h1>🕌 Время намаза</h1>
+      <p>Точное расписание по вашему городу</p>
+    </div>
+    <div class="city-wrap">
+      <select id="citySelect" class="city-select">
+        <option value="55.7558,37.6173">Москва</option>
+        <option value="59.9311,30.3609">Санкт-Петербург</option>
+        <option value="55.0084,82.9357">Новосибирск</option>
+        <option value="56.8389,60.6057">Екатеринбург</option>
+        <option value="55.7963,49.1088">Казань</option>
+        <option value="54.7388,55.9721">Уфа</option>
+        <option value="53.2001,50.1500">Самара</option>
+        <option value="56.3269,44.0059">Нижний Новгород</option>
+        <option value="48.7080,44.5133">Волгоград</option>
+        <option value="51.5336,46.0343">Саратов</option>
+        <option value="54.9885,73.3242">Омск</option>
+        <option value="57.1522,65.5272">Тюмень</option>
+        <option value="55.1644,61.4368">Челябинск</option>
+        <option value="47.2313,39.7233">Ростов-на-Дону</option>
+        <option value="45.0355,38.9753">Краснодар</option>
+        <option value="43.1155,131.8855">Владивосток</option>
+        <option value="43.3179,45.6981">Грозный</option>
+        <option value="42.9764,47.5022">Махачкала</option>
+        <option value="43.4981,43.6189">Нальчик</option>
+        <option value="43.0367,44.6678">Владикавказ</option>
+        <option value="43.2389,76.8897">Алматы</option>
+        <option value="41.2995,69.2401">Ташкент</option>
+        <option value="40.4093,49.8671">Баку</option>
+        <option value="41.0082,28.9784">Стамбул</option>
+        <option value="21.4225,39.8262">Мекка</option>
+      </select>
+      <span class="city-icon">▼</span>
+    </div>
+    <div class="date-info" id="dateInfo" style="display:none;">
+      <b id="gregDate">—</b>
+      <span class="hijri" id="hijriDate">—</span>
+    </div>
+    <div class="next-card" id="nextCard" style="display:none;">
+      <div class="next-label">Следующий намаз</div>
+      <div class="next-name" id="nextName">—</div>
+      <div class="next-time" id="nextTime">—</div>
+      <div class="countdown" id="countdown">—</div>
+    </div>
+    <div class="prayers-list" id="prayersList" style="display:none;"></div>
+    <div class="status" id="status"><div>Загрузка…</div></div>
+    <div class="footer">SEYNARO · PRAYER TIMES</div>
+  </div>
+
+  <!-- ТРЕКЕР -->
+  <div class="page" id="page-tracker">
+    <div class="header">
+      <h1>📿 Трекер намазов</h1>
+      <p>Отмечайте совершённые намазы</p>
+    </div>
+    <div class="tracker-progress">
+      <div class="tp-header">
+        <div class="tp-title">Сегодня</div>
+        <div class="tp-count" id="todayCount">0 / 5</div>
+      </div>
+      <div class="tp-bar"><div class="tp-fill zero" id="todayBar" style="width:0%"></div></div>
+      <div class="tp-sub" id="todaySub">Начните отмечать намазы</div>
+    </div>
+    <div class="tracker-prayers" id="trackerList"></div>
+    <div class="tracker-stats">
+      <div class="stat-card">
+        <div class="stat-card-icon">🔥</div>
+        <div class="stat-card-label">Streak</div>
+        <div class="stat-card-value" id="streakValue">0<small> дн</small></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon">📊</div>
+        <div class="stat-card-label">За 7 дней</div>
+        <div class="stat-card-value" id="weekValue">0<small> / 35</small></div>
+      </div>
+    </div>
+    <div class="week-grid">
+      <div class="week-title">Последние 7 дней</div>
+      <div class="week-days" id="weekDays"></div>
+    </div>
+    <div class="tracker-hint">
+      <b>Как работает:</b><br>
+      Нажмите <b>✓</b> если намаз совершён, <b>✗</b> если пропущен. Отметки сохраняются автоматически.
+    </div>
+  </div>
+
+  <!-- КАЛЕНДАРЬ -->
+  <div class="page" id="page-calendar">
+    <div class="header">
+      <h1>📅 Календарь</h1>
+      <p>Расписание намазов на месяц</p>
+    </div>
+    <div class="calendar-nav">
+      <button class="cal-nav-btn" id="prevMonth">◀</button>
+      <div class="cal-month-title" id="calMonthTitle">—<small id="calHijriTitle">—</small></div>
+      <button class="cal-nav-btn" id="nextMonth">▶</button>
+    </div>
+    <div class="calendar-download">
+      <button class="cal-download-btn" id="downloadCsv">📥 Скачать CSV</button>
+      <button class="cal-download-btn" id="printBtn">🖨 Печать</button>
+    </div>
+    <div class="calendar-table" id="calendarTable">
+      <div class="cal-header-row">
+        <div style="text-align:left;padding-left:4px;">ДАТА</div>
+        <div>ФАДЖР</div>
+        <div>ВОСХОД</div>
+        <div>ЗУХР</div>
+        <div>АСР</div>
+        <div>МАГРИБ</div>
+      </div>
+      <div id="calendarRows"></div>
+    </div>
+    <div class="cal-legend">
+      <div class="cal-legend-item">
+        <span class="cal-legend-dot today"></span>
+        <span>Сегодняшний день</span>
+      </div>
+      <div class="cal-legend-item">
+        <span class="cal-legend-dot friday"></span>
+        <span>Пятница (Джума)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- КИБЛА -->
+  <div class="page" id="page-qibla">
+    <div class="header">
+      <h1>🧭 Кибла</h1>
+      <p>Направление на Каабу в Мекке</p>
+    </div>
+    <div class="qibla-wrap">
+      <div class="compass-container" id="compass">
+        <div class="compass-bg"></div>
+        <div class="compass-dial" id="compassDial"></div>
+        <div class="qibla-arrow" id="qiblaArrow">
+          <div class="kaaba-marker">🕋</div>
+          <svg class="qibla-arrow-svg" viewBox="0 0 60 110" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#10b981"/>
+                <stop offset="100%" stop-color="#10b981" stop-opacity="0.3"/>
+              </linearGradient>
+            </defs>
+            <polygon points="30,0 45,40 38,40 38,110 22,110 22,40 15,40" fill="url(#arrowGrad)" stroke="#10b981" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="compass-center"></div>
+      </div>
+      <div class="accuracy-badge" id="accuracyBadge">
+        <span class="accuracy-dot" id="accuracyDot"></span>
+        <span id="accuracyText">Определяем датчик…</span>
+      </div>
+      <button class="btn-calibrate" id="calibrateBtn">🔄 Калибровать / вручную</button>
+      <div class="qibla-info" style="margin-top: 20px;">
+        <div class="qibla-stat">
+          <div class="qibla-stat-label">Кибла</div>
+          <div class="qibla-stat-value" id="qiblaAngle">—</div>
+        </div>
+        <div class="qibla-stat">
+          <div class="qibla-stat-label">До Мекки</div>
+          <div class="qibla-stat-value" id="distanceToMecca">—</div>
+        </div>
+      </div>
+      <div class="qibla-hint" id="qiblaHint">
+        <b>Как пользоваться:</b><br>
+        Положите телефон горизонтально и поверните его так, чтобы зелёная стрелка указывала вверх — это направление на Мекку.
+      </div>
+    </div>
+  </div>
+
+  <!-- УВЕДОМЛЕНИЯ -->
+  <div class="page" id="page-notifications">
+    <div class="header">
+      <h1>🔔 Уведомления</h1>
+      <p>Напоминания о времени намаза</p>
+    </div>
+    <div class="notif-hero" id="notifHero">
+      <div class="notif-hero-icon">🔔</div>
+      <div class="notif-status-badge" id="notifStatus">Не подключены</div>
+      <div class="notif-hero-title">Напоминания о намазе</div>
+      <div class="notif-hero-sub" id="notifHeroSub">Включите, чтобы получать уведомления</div>
+      <button class="notif-hero-btn" id="requestPermissionBtn">Включить уведомления</button>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Намазы</div>
+      <div class="settings-row">
+        <div class="settings-label">Фаджр</div>
+        <div class="toggle" data-prayer="fajr"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Зухр</div>
+        <div class="toggle" data-prayer="dhuhr"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Аср</div>
+        <div class="toggle" data-prayer="asr"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Магриб</div>
+        <div class="toggle" data-prayer="maghrib"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Иша</div>
+        <div class="toggle" data-prayer="isha"></div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Когда уведомлять</div>
+      <div class="settings-row">
+        <div class="settings-label">Начало намаза</div>
+        <div class="toggle" id="notifyAtStart"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Заранее</div>
+        <select id="advanceMinutes" class="settings-select">
+          <option value="5">5 минут</option>
+          <option value="10" selected>10 минут</option>
+          <option value="15">15 минут</option>
+          <option value="20">20 минут</option>
+          <option value="30">30 минут</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Дополнительно</div>
+      <div class="settings-row">
+        <div class="settings-label">Тихие часы</div>
+        <div class="toggle" id="quietHours"></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Тест</div>
+        <button class="btn-calibrate" id="testNotifBtn" style="margin:0;">Проверить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- НАСТРОЙКИ -->
+  <div class="page" id="page-settings">
+    <div class="header">
+      <h1>⚙️ Настройки</h1>
+      <p>Настройте приложение под себя</p>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Оформление</div>
+      <div class="settings-row" style="display:block;">
+        <div class="settings-label" style="margin-bottom:10px;">Тема приложения</div>
+        <div class="theme-switcher" id="themeSwitcher">
+          <button class="theme-btn" data-theme-val="light">☀️ Светлая</button>
+          <button class="theme-btn" data-theme-val="dark">🌙 Тёмная</button>
+          <button class="theme-btn" data-theme-val="auto">🔄 Авто</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Расчёт</div>
+      <div class="settings-row">
+        <div class="settings-label">Метод расчёта<small>Фаджр и Иша</small></div>
+        <select id="methodSelect" class="settings-select">
+          <option value="MuslimWorldLeague">Muslim World League</option>
+          <option value="UmmAlQura">Umm Al-Qura</option>
+          <option value="Egyptian">Egyptian</option>
+          <option value="Karachi">Karachi</option>
+          <option value="NorthAmerica">ISNA</option>
+          <option value="Dubai">Dubai</option>
+          <option value="Turkey">Turkey</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">Мазхаб<small>Время Аср</small></div>
+        <select id="madhabSelect" class="settings-select">
+          <option value="shafi">Шафии / Ханбали</option>
+          <option value="hanafi">Ханафи</option>
+        </select>
+      </div>
+    </div>
+    <div class="settings-group">
+      <div class="settings-group-title">Отображение</div>
+      <div class="settings-row">
+        <div class="settings-label">Формат времени</div>
+        <select id="timeFormatSelect" class="settings-select">
+          <option value="24">24 часа</option>
+          <option value="12">12 часов</option>
+        </select>
+      </div>
+    </div>
+    <div class="footer">Seynaro v1.7 · PWA</div>
+  </div>
+
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-page="timetable">
+    <span class="icon">🕌</span><span>Намаз</span>
+  </button>
+  <button class="nav-btn" data-page="tracker">
+    <span class="icon">📿</span><span>Трекер</span>
+  </button>
+  <button class="nav-btn" data-page="calendar">
+    <span class="icon">📅</span><span>Кален.</span>
+  </button>
+  <button class="nav-btn" data-page="qibla">
+    <span class="icon">🧭</span><span>Кибла</span>
+  </button>
+  <button class="nav-btn" data-page="notifications">
+    <span class="icon">🔔</span><span>Звонки</span>
+  </button>
+  <button class="nav-btn" data-page="settings">
+    <span class="icon">⚙️</span><span>Ещё</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast">Готово</div>
+
+<!-- Кнопка установки PWA -->
+<button class="install-btn" id="installBtn">
+  📲 Установить приложение
+</button>
+
+<script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
+<script>
+window.addEventListener('load', function() {
+  console.log('=== SEYNARO v1.7 (PWA) ===');
+
+  if (typeof adhan === 'undefined') {
+    document.getElementById('status').innerHTML = '⚠️ Библиотека не загрузилась.';
+    document.getElementById('status').className = 'status error';
+    return;
+  }
+
+  const PRAYER_NAMES = { fajr: 'Фаджр', sunrise: 'Восход', dhuhr: 'Зухр', asr: 'Аср', maghrib: 'Магриб', isha: 'Иша' };
+  const PRAYER_ARABIC = { fajr: 'الفجر', sunrise: 'الشروق', dhuhr: 'الظهر', asr: 'العصر', maghrib: 'المغرب', isha: 'العشاء' };
+  const PRAYER_ORDER = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  const NOTIFY_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  const TRACK_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+  const PRAYER_ICONS = { fajr: '🌅', dhuhr: '☀️', asr: '🌤', maghrib: '🌇', isha: '🌙' };
+
+  const KAABA_LAT = 21.4225;
+  const KAABA_LON = 39.8262;
+  const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const WEEKDAYS_RU = ['вс','пн','вт','ср','чт','пт','сб'];
+
+  const $ = id => document.getElementById(id);
+
+  let prayerTimes = null;
+  let countdownInterval = null;
+  let currentLat = 55.7558;
+  let currentLon = 37.6173;
+  let qiblaBearing = 0;
+  let deviceHeading = 0;
+  let manualHeading = null;
+  let hasCompass = false;
+  let calendarYear = new Date().getFullYear();
+  let calendarMonth = new Date().getMonth();
+  let calendarData = [];
+  const scheduledTimeouts = {};
+
+  let notifySettings = {
+    enabled: false,
+    prayers: { fajr: true, dhuhr: true, asr: true, maghrib: true, isha: true },
+    atStart: true,
+    advanceMinutes: 10,
+    quietHours: false
+  };
+
+  const settings = {
+    method: 'MuslimWorldLeague',
+    madhab: 'shafi',
+    timeFormat: '24',
+    theme: 'dark'
+  };
+
+  let trackerData = {};
+
+  try {
+    Object.assign(settings, JSON.parse(localStorage.getItem('namaz_settings') || '{}'));
+    Object.assign(notifySettings, JSON.parse(localStorage.getItem('namaz_notify') || '{}'));
+    trackerData = JSON.parse(localStorage.getItem('namaz_tracker') || '{}');
+  } catch (e) {}
+
+  function showToast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function saveNotifySettings() { localStorage.setItem('namaz_notify', JSON.stringify(notifySettings)); }
+  function saveTracker() { localStorage.setItem('namaz_tracker', JSON.stringify(trackerData)); }
+  function saveSettings() { localStorage.setItem('namaz_settings', JSON.stringify(settings)); }
+
+  function dateKey(date) {
+    const d = date || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function formatTime(date) {
+    if (!date) return '—';
+    return date.toLocaleTimeString('ru-RU', {
+      hour: '2-digit', minute: '2-digit',
+      hour12: settings.timeFormat === '12'
+    });
+  }
+
+  // ТЕМА
+  function getAutoTheme() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 9) return 'morning';
+    if (h >= 9 && h < 18) return 'day';
+    if (h >= 18 && h < 22) return 'evening';
+    return 'dark';
+  }
+
+  function applyTheme() {
+    let theme = settings.theme;
+    if (theme === 'auto') theme = getAutoTheme();
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeButtons();
+  }
+
+  function updateThemeButtons() {
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.themeVal === settings.theme);
+    });
+  }
+
+  function setTheme(theme) {
+    settings.theme = theme;
+    saveSettings();
+    applyTheme();
+    const names = { light: 'Светлая', dark: 'Тёмная', auto: 'Авто' };
+    showToast('Тема: ' + names[theme]);
+  }
+
+  // РАСЧЁТ
+  function getCalcParams() {
+    const methodFn = adhan.CalculationMethod[settings.method] || adhan.CalculationMethod.MuslimWorldLeague;
+    const params = methodFn();
+    params.madhab = settings.madhab === 'hanafi' ? adhan.Madhab.Hanafi : adhan.Madhab.Shafi;
+    return params;
+  }
+
+  function calculate(lat, lon) {
+    try {
+      currentLat = lat; currentLon = lon;
+      const coords = new adhan.Coordinates(lat, lon);
+      prayerTimes = new adhan.PrayerTimes(coords, new Date(), getCalcParams());
+      renderTimetable();
+      updateQiblaPage();
+      renderTracker();
+      scheduleNotifications();
+    } catch (e) {
+      console.error(e);
+      $('status').innerHTML = 'Ошибка: ' + e.message;
+      $('status').className = 'status error';
+    }
+  }
+
+  function renderTimetable() {
+    if (!prayerTimes) return;
+    $('status').style.display = 'none';
+    const now = new Date();
+    $('gregDate').textContent = now.toLocaleDateString('ru-RU', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    try {
+      $('hijriDate').textContent = new Intl.DateTimeFormat('ru-RU-u-ca-islamic', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      }).format(now);
+    } catch (e) {}
+    $('dateInfo').style.display = 'block';
+    const next = prayerTimes.nextPrayer();
+    let html = '';
+    for (const key of PRAYER_ORDER) {
+      const time = prayerTimes[key];
+      const isActive = key === next;
+      const isPassed = time < now && !isActive;
+      let cls = 'prayer-row';
+      if (isActive) cls += ' active';
+      else if (isPassed) cls += ' passed';
+      html += `<div class="${cls}">
+        <div class="prayer-name"><b>${PRAYER_NAMES[key]}</b><span>${PRAYER_ARABIC[key]}</span></div>
+        <div class="prayer-time">${formatTime(time)}</div>
+      </div>`;
+    }
+    $('prayersList').innerHTML = html;
+    $('prayersList').style.display = 'block';
+    const nextTime = prayerTimes[next];
+    if (nextTime) {
+      $('nextName').textContent = PRAYER_NAMES[next];
+      $('nextTime').textContent = formatTime(nextTime);
+      $('nextCard').style.display = 'block';
+    }
+    startCountdown();
+  }
+
+  function updateCountdown() {
+    if (!prayerTimes) return;
+    const next = prayerTimes.nextPrayer();
+    const nextTime = prayerTimes[next];
+    if (!nextTime) return;
+    const diff = nextTime - new Date();
+    if (diff <= 0) { renderTimetable(); return; }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    const parts = [];
+    if (h > 0) parts.push(h + ' ч');
+    if (m > 0 || h > 0) parts.push(m + ' мин');
+    parts.push(s + ' сек');
+    $('countdown').textContent = 'через ' + parts.join(' ');
+  }
+
+  function startCountdown() {
+    if (countdownInterval) clearInterval(countdownInterval);
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
+  }
+
+  // ТРЕКЕР
+  function getTodayRecord() {
+    const key = dateKey();
+    if (!trackerData[key]) trackerData[key] = {};
+    TRACK_PRAYERS.forEach(p => { if (!(p in trackerData[key])) trackerData[key][p] = null; });
+    return trackerData[key];
+  }
+
+  function setPrayerStatus(prayer, status) {
+    const key = dateKey();
+    if (!trackerData[key]) getTodayRecord();
+    trackerData[key][prayer] = trackerData[key][prayer] === status ? null : status;
+    saveTracker();
+    renderTracker();
+  }
+
+  function renderTracker() {
+    const todayRecord = getTodayRecord();
+    const doneCount = TRACK_PRAYERS.filter(p => todayRecord[p] === 'done').length;
+    $('todayCount').textContent = doneCount + ' / 5';
+    const bar = $('todayBar');
+    bar.style.width = (doneCount / 5) * 100 + '%';
+    bar.className = 'tp-fill' + (doneCount === 0 ? ' zero' : doneCount < 3 ? ' low' : '');
+    let subText = '';
+    if (doneCount === 0) subText = 'Начните отмечать намазы';
+    else if (doneCount === 5) subText = '🎉 Все намазы совершены! МашаАллах!';
+    else subText = `Совершено <b>${doneCount}</b> из 5 намазов`;
+    $('todaySub').innerHTML = subText;
+
+    const times = prayerTimes || {};
+    let listHtml = '';
+    TRACK_PRAYERS.forEach(key => {
+      const status = todayRecord[key];
+      const time = times[key];
+      const cls = 'tracker-item' + (status === 'done' ? ' done' : status === 'missed' ? ' missed' : '');
+      listHtml += `<div class="${cls}">
+        <div class="tracker-left">
+          <div class="tracker-icon">${PRAYER_ICONS[key]}</div>
+          <div class="tracker-info">
+            <div class="tracker-name">${PRAYER_NAMES[key]}</div>
+            <div class="tracker-time">${time ? formatTime(time) : '—'}</div>
+          </div>
+        </div>
+        <div class="tracker-actions">
+          <button class="tracker-btn ${status === 'done' ? 'active-done' : ''}"
+                  data-action="done" data-prayer="${key}">✓</button>
+          <button class="tracker-btn ${status === 'missed' ? 'active-missed' : ''}"
+                  data-action="missed" data-prayer="${key}">✗</button>
+        </div>
+      </div>`;
+    });
+    $('trackerList').innerHTML = listHtml;
+    document.querySelectorAll('.tracker-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        setPrayerStatus(this.dataset.prayer, this.dataset.action);
+      });
+    });
+
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const k = dateKey(d);
+      const rec = trackerData[k];
+      if (!rec) { if (i === 0) continue; break; }
+      const allDone = TRACK_PRAYERS.every(p => rec[p] === 'done');
+      const hasMissed = TRACK_PRAYERS.some(p => rec[p] === 'missed');
+      if (allDone && !hasMissed) streak++;
+      else if (i === 0) continue;
+      else break;
+    }
+    $('streakValue').innerHTML = streak + '<small> дн</small>';
+
+    let weekDone = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const k = dateKey(d);
+      const rec = trackerData[k];
+      if (rec) weekDone += TRACK_PRAYERS.filter(p => rec[p] === 'done').length;
+    }
+    $('weekValue').innerHTML = weekDone + '<small> / 35</small>';
+
+    let weekHtml = '';
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const k = dateKey(d);
+      const rec = trackerData[k];
+      const dc = rec ? TRACK_PRAYERS.filter(p => rec[p] === 'done').length : 0;
+      let cls = 'week-day';
+      if (dc === 5) cls += ' perfect';
+      else if (dc >= 3) cls += ' good';
+      else if (dc === 0 && rec) cls += ' bad';
+      weekHtml += `<div class="${cls}">
+        <div class="week-day-label">${WEEKDAYS_RU[d.getDay()]}</div>
+        <div class="week-day-value">${dc}</div>
+      </div>`;
+    }
+    $('weekDays').innerHTML = weekHtml;
+  }
+
+  // КИБЛА
+  function calculateQibla(lat, lon) {
+    const toRad = d => d * Math.PI / 180;
+    const toDeg = r => r * 180 / Math.PI;
+    const φ1 = toRad(lat), φ2 = toRad(KAABA_LAT), Δλ = toRad(KAABA_LON - lon);
+    const x = Math.sin(Δλ) * Math.cos(φ2);
+    const y = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    return (toDeg(Math.atan2(x, y)) + 360) % 360;
+  }
+
+  function calculateDistance(lat, lon) {
+    const toRad = d => d * Math.PI / 180;
+    const R = 6371;
+    const dLat = toRad(KAABA_LAT - lat);
+    const dLon = toRad(KAABA_LON - lon);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat)) * Math.cos(toRad(KAABA_LAT)) * Math.sin(dLon/2)**2;
+    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  }
+
+  function buildCompassDial() {
+    const dial = $('compassDial');
+    if (!dial) return;
+    dial.innerHTML = '';
+    for (let deg = 0; deg < 360; deg += 5) {
+      const tick = document.createElement('div');
+      tick.className = 'compass-tick';
+      if (deg % 90 === 0) tick.className = 'compass-tick cardinal';
+      else if (deg % 30 === 0) tick.className = 'compass-tick major';
+      tick.style.transform = `rotate(${deg}deg)`;
+      dial.appendChild(tick);
+    }
+    [{ deg: 0, label: 'С', cls: 'n' }, { deg: 90, label: 'В', cls: 'e' },
+     { deg: 180, label: 'Ю', cls: 's' }, { deg: 270, label: 'З', cls: 'w' }]
+      .forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'compass-cardinal ' + c.cls;
+        el.textContent = c.label;
+        el.style.transform = `rotate(${c.deg}deg)`;
+        dial.appendChild(el);
+      });
+  }
+
+  function updateCompass() {
+    const heading = manualHeading !== null ? manualHeading : deviceHeading;
+    if ($('compassDial')) $('compassDial').style.transform = `rotate(${-heading}deg)`;
+    if ($('qiblaArrow')) $('qiblaArrow').style.transform = `rotate(${qiblaBearing - heading}deg)`;
+  }
+
+  function handleOrientation(e) {
+    let heading = null;
+    if (e.webkitCompassHeading !== undefined) heading = e.webkitCompassHeading;
+    else if (e.alpha !== null) heading = 360 - e.alpha;
+    if (heading !== null) {
+      const diff = heading - deviceHeading;
+      const sm = diff > 180 ? diff - 360 : diff < -180 ? diff + 360 : diff;
+      deviceHeading = (deviceHeading + sm * 0.3 + 360) % 360;
+      hasCompass = true;
+      manualHeading = null;
+      updateCompass();
+      updateAccuracy('good', 'Компас активен');
+    }
+  }
+
+  function startCompass() {
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      updateAccuracy('bad', 'Датчик не поддерживается');
+      return;
+    }
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(r => {
+          if (r === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation, true);
+            updateAccuracy('good', 'Датчик разрешён');
+          } else updateAccuracy('bad', 'Нет доступа');
+        })
+        .catch(() => updateAccuracy('bad', 'Ошибка датчика'));
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation, true);
+      setTimeout(() => { if (!hasCompass) updateAccuracy('bad', 'Датчик не активен'); }, 2000);
+    }
+  }
+
+  function updateAccuracy(type, text) {
+    const dot = $('accuracyDot'), txt = $('accuracyText');
+    if (!dot || !txt) return;
+    dot.className = 'accuracy-dot ' + (type === 'good' ? 'good' : type === 'bad' ? 'bad' : '');
+    txt.textContent = text;
+  }
+
+  function initManualRotation() {
+    const compass = $('compass');
+    if (!compass) return;
+    let dragging = false, startAngle = 0, startHeading = 0;
+    function getAngle(x, y) {
+      const r = compass.getBoundingClientRect();
+      return Math.atan2(y - (r.top + r.height/2), x - (r.left + r.width/2)) * 180 / Math.PI;
+    }
+    compass.addEventListener('mousedown', e => {
+      if (hasCompass) return;
+      dragging = true;
+      startAngle = getAngle(e.clientX, e.clientY);
+      startHeading = manualHeading !== null ? manualHeading : deviceHeading;
+    });
+    document.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      manualHeading = (startHeading - (getAngle(e.clientX, e.clientY) - startAngle) + 360) % 360;
+      updateCompass();
+    });
+    document.addEventListener('mouseup', () => dragging = false);
+    compass.addEventListener('touchstart', e => {
+      if (hasCompass) return;
+      const t = e.touches[0];
+      startAngle = getAngle(t.clientX, t.clientY);
+      startHeading = manualHeading !== null ? manualHeading : deviceHeading;
+    }, { passive: true });
+    compass.addEventListener('touchmove', e => {
+      if (hasCompass) return;
+      const t = e.touches[0];
+      manualHeading = (startHeading - (getAngle(t.clientX, t.clientY) - startAngle) + 360) % 360;
+      updateCompass();
+    }, { passive: true });
+  }
+
+  function updateQiblaPage() {
+    qiblaBearing = calculateQibla(currentLat, currentLon);
+    const dist = calculateDistance(currentLat, currentLon);
+    if ($('qiblaAngle')) $('qiblaAngle').innerHTML = Math.round(qiblaBearing) + '<small>°</small>';
+    if ($('distanceToMecca')) $('distanceToMecca').innerHTML = dist.toLocaleString('ru-RU') + '<small> км</small>';
+    updateCompass();
+  }
+
+  // КАЛЕНДАРЬ
+  function buildCalendarData(year, month) {
+    const data = [];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const coords = new adhan.Coordinates(currentLat, currentLon);
+    const params = getCalcParams();
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day, 12, 0, 0);
+      const times = new adhan.PrayerTimes(coords, date, params);
+      data.push({
+        day: day, date: date, weekday: date.getDay(),
+        fajr: times.fajr, sunrise: times.sunrise, dhuhr: times.dhuhr,
+        asr: times.asr, maghrib: times.maghrib, isha: times.isha
+      });
+    }
+    return data;
+  }
+
+  function renderCalendar() {
+    const title = $('calMonthTitle');
+    const rows = $('calendarRows');
+    if (!title || !rows) return;
+    title.innerHTML = MONTHS_RU[calendarMonth] + ' ' + calendarYear + '<small></small>';
+    try {
+      const firstDay = new Date(calendarYear, calendarMonth, 1);
+      const hijri = new Intl.DateTimeFormat('ru-RU-u-ca-islamic', {
+        month: 'long', year: 'numeric'
+      }).format(firstDay);
+      title.querySelector('small').textContent = hijri;
+    } catch (e) {}
+    calendarData = buildCalendarData(calendarYear, calendarMonth);
+    const now = new Date();
+    const todayKey = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+    let html = '';
+    calendarData.forEach(d => {
+      const key = d.date.getFullYear() + '-' + (d.date.getMonth()+1) + '-' + d.date.getDate();
+      const isToday = key === todayKey;
+      const isFriday = d.weekday === 5;
+      let cls = 'cal-row';
+      if (isToday) cls += ' today';
+      else if (isFriday) cls += ' friday';
+      html += `<div class="${cls}">
+        <div class="cal-date">${d.day}<small>${WEEKDAYS_RU[d.weekday]}</small></div>
+        <div class="cal-time highlight">${formatTime(d.fajr)}</div>
+        <div class="cal-time sunrise">${formatTime(d.sunrise)}</div>
+        <div class="cal-time">${formatTime(d.dhuhr)}</div>
+        <div class="cal-time">${formatTime(d.asr)}</div>
+        <div class="cal-time">${formatTime(d.maghrib)}</div>
+      </div>`;
+    });
+    rows.innerHTML = html;
+    if ($('nextMonth')) $('nextMonth').disabled = calendarYear >= now.getFullYear() + 1;
+  }
+
+  function changeMonth(delta) {
+    calendarMonth += delta;
+    if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+    if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+    renderCalendar();
+  }
+
+  function downloadCSV() {
+    if (!calendarData.length) return showToast('Календарь пуст');
+    let csv = 'Дата;День недели;Фаджр;Восход;Зухр;Аср;Магриб;Иша\n';
+    calendarData.forEach(d => {
+      const dateStr = d.day.toString().padStart(2, '0') + '.' +
+                     (calendarMonth + 1).toString().padStart(2, '0') + '.' + calendarYear;
+      csv += [dateStr, WEEKDAYS_RU[d.weekday],
+        formatTime(d.fajr), formatTime(d.sunrise), formatTime(d.dhuhr),
+        formatTime(d.asr), formatTime(d.maghrib), formatTime(d.isha)].join(';') + '\n';
+    });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `namaz_${calendarYear}_${(calendarMonth+1).toString().padStart(2,'0')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ CSV скачан');
+  }
+
+  // УВЕДОМЛЕНИЯ
+  function isQuietTime(date) {
+    if (!notifySettings.quietHours) return false;
+    const h = date.getHours();
+    return h >= 23 || h < 5;
+  }
+
+  function updateNotifUI() {
+    const status = $('notifStatus');
+    const heroSub = $('notifHeroSub');
+    const btn = $('requestPermissionBtn');
+    if (!status || !btn) return;
+    if (!('Notification' in window)) {
+      status.textContent = 'Не поддерживается';
+      heroSub.textContent = 'Ваш браузер не поддерживает уведомления';
+      btn.disabled = true;
+      return;
+    }
+    const perm = Notification.permission;
+    if (perm === 'granted' && notifySettings.enabled) {
+      status.textContent = '✅ Активны';
+      heroSub.textContent = 'Вы будете получать напоминания';
+      btn.textContent = 'Отключить уведомления';
+      btn.disabled = false;
+    } else if (perm === 'granted') {
+      status.textContent = 'Разрешение есть';
+      heroSub.textContent = 'Включите уведомления';
+      btn.textContent = 'Включить уведомления';
+      btn.disabled = false;
+    } else if (perm === 'denied') {
+      status.textContent = '❌ Запрещено';
+      heroSub.textContent = 'Разрешите в настройках браузера';
+      btn.textContent = 'Разрешение заблокировано';
+      btn.disabled = true;
+    } else {
+      status.textContent = 'Не подключены';
+      heroSub.textContent = 'Включите, чтобы получать напоминания';
+      btn.textContent = 'Включить уведомления';
+      btn.disabled = false;
+    }
+    document.querySelectorAll('[data-prayer]').forEach(el => {
+      el.classList.toggle('on', notifySettings.prayers[el.dataset.prayer]);
+    });
+    if ($('notifyAtStart')) $('notifyAtStart').classList.toggle('on', notifySettings.atStart);
+    if ($('quietHours')) $('quietHours').classList.toggle('on', notifySettings.quietHours);
+    if ($('advanceMinutes')) $('advanceMinutes').value = notifySettings.advanceMinutes;
+  }
+
+  async function requestNotifPermission() {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') { showToast('Заблокировано'); return false; }
+    const perm = await Notification.requestPermission();
+    return perm === 'granted';
+  }
+
+  function showNotification(title, body) {
+    if (Notification.permission !== 'granted') return;
+    try {
+      const n = new Notification(title, { body, icon: 'icons/icon-192.png' });
+      n.onclick = () => { window.focus(); n.close(); };
+    } catch (e) {}
+  }
+
+  function cancelAllScheduled() {
+    Object.keys(scheduledTimeouts).forEach(k => {
+      clearTimeout(scheduledTimeouts[k]);
+      delete scheduledTimeouts[k];
+    });
+  }
+
+  function scheduleOne(prayerKey, prayerTime, advanceMin) {
+    const now = new Date();
+    const notifyAt = new Date(prayerTime.getTime() - advanceMin * 60000);
+    const diff = notifyAt - now;
+    if (diff <= 0 || diff > 24 * 3600 * 1000) return;
+    const key = prayerKey + '_' + advanceMin;
+    scheduledTimeouts[key] = setTimeout(() => {
+      if (isQuietTime(new Date())) return;
+      const timeStr = formatTime(prayerTime);
+      const msg = advanceMin > 0
+        ? `Через ${advanceMin} мин намаз ${PRAYER_NAMES[prayerKey]} (${timeStr})`
+        : `Время намаза ${PRAYER_NAMES[prayerKey]} — ${timeStr}`;
+      showNotification('🕌 ' + PRAYER_NAMES[prayerKey], msg);
+      delete scheduledTimeouts[key];
+    }, diff);
+  }
+
+  function scheduleNotifications() {
+    cancelAllScheduled();
+    if (!notifySettings.enabled || !prayerTimes) return;
+    if (Notification.permission !== 'granted') return;
+    const advance = notifySettings.advanceMinutes;
+    NOTIFY_PRAYERS.forEach(key => {
+      if (!notifySettings.prayers[key]) return;
+      const time = prayerTimes[key];
+      if (!time) return;
+      if (advance > 0) scheduleOne(key, time, advance);
+      if (notifySettings.atStart) scheduleOne(key, time, 0);
+    });
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 30, 0);
+    setTimeout(() => calculate(currentLat, currentLon), tomorrow - new Date());
+  }
+
+  function bindNotifications() {
+    if ($('requestPermissionBtn')) {
+      $('requestPermissionBtn').addEventListener('click', async () => {
+        if (notifySettings.enabled) {
+          notifySettings.enabled = false;
+          saveNotifySettings();
+          cancelAllScheduled();
+          updateNotifUI();
+          showToast('Уведомления выключены');
+          return;
+        }
+        const ok = await requestNotifPermission();
+        if (!ok) return updateNotifUI();
+        notifySettings.enabled = true;
+        saveNotifySettings();
+        updateNotifUI();
+        scheduleNotifications();
+        showToast('✅ Включены');
+      });
+    }
+    document.querySelectorAll('[data-prayer]').forEach(el => {
+      el.addEventListener('click', function() {
+        const p = this.dataset.prayer;
+        notifySettings.prayers[p] = !notifySettings.prayers[p];
+        this.classList.toggle('on', notifySettings.prayers[p]);
+        saveNotifySettings();
+        if (notifySettings.enabled) scheduleNotifications();
+      });
+    });
+    if ($('notifyAtStart')) {
+      $('notifyAtStart').addEventListener('click', function() {
+        notifySettings.atStart = !notifySettings.atStart;
+        this.classList.toggle('on', notifySettings.atStart);
+        saveNotifySettings();
+        if (notifySettings.enabled) scheduleNotifications();
+      });
+    }
+    if ($('advanceMinutes')) {
+      $('advanceMinutes').addEventListener('change', function(e) {
+        notifySettings.advanceMinutes = parseInt(e.target.value);
+        saveNotifySettings();
+        if (notifySettings.enabled) scheduleNotifications();
+      });
+    }
+    if ($('quietHours')) {
+      $('quietHours').addEventListener('click', function() {
+        notifySettings.quietHours = !notifySettings.quietHours;
+        this.classList.toggle('on', notifySettings.quietHours);
+        saveNotifySettings();
+      });
+    }
+    if ($('testNotifBtn')) {
+      $('testNotifBtn').addEventListener('click', () => {
+        if (Notification.permission !== 'granted') return showToast('Сначала разрешите');
+        showNotification('🕌 Тест', 'Так будут выглядеть напоминания');
+      });
+    }
+  }
+
+  // ОСНОВНЫЕ
+  function bindMain() {
+    $('citySelect').addEventListener('change', function(e) {
+      const v = e.target.value;
+      if (v && v.includes(',')) {
+        const [lat, lon] = v.split(',').map(parseFloat);
+        if (!isNaN(lat) && !isNaN(lon)) {
+          localStorage.setItem('namaz_city', v);
+          calculate(lat, lon);
+          if ($('page-calendar').classList.contains('active')) renderCalendar();
+        }
+      }
+    });
+    $('methodSelect').addEventListener('change', function(e) {
+      settings.method = e.target.value;
+      saveSettings();
+      calculate(currentLat, currentLon);
+    });
+    $('madhabSelect').addEventListener('change', function(e) {
+      settings.madhab = e.target.value;
+      saveSettings();
+      calculate(currentLat, currentLon);
+    });
+    $('timeFormatSelect').addEventListener('change', function(e) {
+      settings.timeFormat = e.target.value;
+      saveSettings();
+      renderTimetable();
+      renderTracker();
+      if ($('page-calendar').classList.contains('active')) renderCalendar();
+    });
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        setTheme(this.dataset.themeVal);
+      });
+    });
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const page = this.dataset.page;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+        document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === 'page-' + page));
+        if (page === 'calendar') renderCalendar();
+        if (page === 'tracker') renderTracker();
+      });
+    });
+    if ($('calibrateBtn')) {
+      $('calibrateBtn').addEventListener('click', function() {
+        if (hasCompass) {
+          manualHeading = null;
+          updateCompass();
+          updateAccuracy('good', 'Компас активен');
+        } else {
+          manualHeading = 0;
+          updateCompass();
+        }
+      });
+    }
+    if ($('prevMonth')) $('prevMonth').addEventListener('click', () => changeMonth(-1));
+    if ($('nextMonth')) $('nextMonth').addEventListener('click', () => changeMonth(1));
+    if ($('downloadCsv')) $('downloadCsv').addEventListener('click', downloadCSV);
+    if ($('printBtn')) $('printBtn').addEventListener('click', () => window.print());
+  }
+
+  function init() {
+    applyTheme();
+    $('methodSelect').value = settings.method;
+    $('madhabSelect').value = settings.madhab;
+    $('timeFormatSelect').value = settings.timeFormat;
+    buildCompassDial();
+    initManualRotation();
+    bindMain();
+    bindNotifications();
+    updateNotifUI();
+
+    const savedCity = localStorage.getItem('namaz_city') || '55.7558,37.6173';
+    let found = false;
+    for (let i = 0; i < $('citySelect').options.length; i++) {
+      if ($('citySelect').options[i].value === savedCity) {
+        $('citySelect').selectedIndex = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) $('citySelect').selectedIndex = 0;
+
+    const parts = $('citySelect').value.split(',');
+    calculate(parseFloat(parts[0]), parseFloat(parts[1]));
+    startCompass();
+    setInterval(() => {
+      if (settings.theme === 'auto') applyTheme();
+    }, 15 * 60 * 1000);
+
+    console.log('=== ИНИЦИАЛИЗАЦИЯ v1.7 ЗАВЕРШЕНА ===');
+  }
+
+  init();
+});
+</script>
+
+<!-- PWA: регистрация Service Worker + кнопка установки -->
+<script>
+(function() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('✅ Service Worker зарегистрирован:', reg.scope))
+        .catch(err => console.error('❌ Ошибка SW:', err));
+    });
+  }
+
+  let deferredPrompt = null;
+  const btn = document.getElementById('installBtn');
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (btn) btn.style.display = 'flex';
+    console.log('💡 Приложение можно установить');
+  });
+
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log('Установка:', outcome);
+      deferredPrompt = null;
+      btn.style.display = 'none';
+    });
+  }
+
+  window.addEventListener('appinstalled', () => {
+    console.log('✅ Приложение установлено');
+    if (btn) btn.style.display = 'none';
+  });
+})();
+</script>
+</body>
+</html>
