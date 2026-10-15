@@ -17,7 +17,9 @@ jobs:
   send-prayer-reminders:
     runs-on: ubuntu-latest
     env:
-      TZ: Europe/Moscow
+      TZ: ${{ secrets.PRAYER_TIMEZONE || 'Europe/Moscow' }}
+      PRAYER_LAT: ${{ secrets.PRAYER_LAT || '55.7558' }}
+      PRAYER_LON: ${{ secrets.PRAYER_LON || '37.6173' }}
       VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
       VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
@@ -67,12 +69,22 @@ jobs:
             const subscription =
               JSON.parse(process.env.PUSH_SUBSCRIPTION);
 
-            const coords = new adhan.Coordinates(55.7558, 37.6173);
+            const lat = Number(process.env.PRAYER_LAT);
+            const lon = Number(process.env.PRAYER_LON);
+            if (!Number.isFinite(lat) || lat < -90 || lat > 90 ||
+                !Number.isFinite(lon) || lon < -180 || lon > 180) {
+              throw new Error('PRAYER_LAT или PRAYER_LON заданы некорректно');
+            }
+            console.log('Городские координаты для расчёта:', lat + ', ' + lon);
+            console.log('Часовой пояс расчёта:', process.env.TZ);
+            const coords = new adhan.Coordinates(lat, lon);
             const params = adhan.CalculationMethod.MuslimWorldLeague();
             params.madhab = adhan.Madhab.Shafi;
 
             const now = new Date();
             const prayers = new adhan.PrayerTimes(coords, now, params);
+            console.log('Дата проверки:', now.toString());
+            console.log('Расписание намаза:', Object.entries({fajr: prayers.fajr, dhuhr: prayers.dhuhr, asr: prayers.asr, maghrib: prayers.maghrib, isha: prayers.isha}).map(([k, v]) => k + '=' + targetTime(v)).join(', '));
 
             const names = {
               fajr: 'Фаджр',
@@ -115,9 +127,10 @@ jobs:
 
                 const difference = nowMs - target.getTime();
 
-                // GitHub Actions проверяет расписание каждые 5 минут.
-                // Дополнительный запас учитывает возможную задержку запуска.
-                if (difference < 0 || difference > 8 * 60_000) continue;
+                // Workflow запускается каждые 5 минут; GitHub может задерживать cron.
+                // Окно 14 минут снижает риск пропуска. Дедупликация по state не даёт
+                // повторно отправить одно и то же уведомление после сохранения state.
+                if (difference < 0 || difference > 14 * 60_000) continue;
 
                 const marker = `${today}_${key}_${advance}`;
 
