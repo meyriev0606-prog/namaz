@@ -2,7 +2,7 @@
 /* Seynaro — Service Worker
    Офлайн-режим и push-уведомления. */
 
-const CACHE_NAME = 'seynaro-namaz-v19';
+const CACHE_NAME = 'seynaro-namaz-v20';
 
 // Позволяет странице принудительно активировать новую версию SW.
 self.addEventListener('message', event => {
