@@ -1734,7 +1734,17 @@ window.addEventListener('load', function() {
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
-          try { await reg.update(); } catch (err) { console.warn('Проверка обновления отложена:', err); }
+          const checkForAppUpdate = async () => {
+            if (!navigator.onLine) return;
+            try { await reg.update(); }
+            catch (err) { console.warn('Проверка обновления отложена:', err); }
+          };
+          await checkForAppUpdate();
+          // Проверяем обновления у пользователей с открытым приложением раз в минуту.
+          window.setInterval(checkForAppUpdate, 60 * 1000);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') checkForAppUpdate();
+          });
         })
         .catch(err => console.error('❌ Ошибка SW:', err));
     });
