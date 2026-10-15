@@ -1,6 +1,6 @@
 {
   "name": "Seynaro — Время намаза",
-  "short_name": "Намаз",
+  "short_name": "Seynaro",
   "description": "Точное расписание намазов, Кибла, трекер и уведомления",
   "start_url": "./index.html",
   "scope": "./",
