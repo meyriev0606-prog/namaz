@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -83,43 +82,60 @@
       return Uint8Array.from(raw, char => char.charCodeAt(0));
     }
 
+    function diagnostics() {
+      const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      return {
+        secureContext: window.isSecureContext,
+        serviceWorker: 'serviceWorker' in navigator,
+        pushManager: 'PushManager' in window,
+        notificationAPI: 'Notification' in window,
+        standalone,
+        permission: ('Notification' in window) ? Notification.permission : 'API отсутствует'
+      };
+    }
+
+    function describeEnvironment() {
+      const d = diagnostics();
+      return 'Диагностика устройства:\n' +
+        '• Установленное приложение: ' + (d.standalone ? 'да' : 'нет (страница открыта как вкладка браузера)') + '\n' +
+        '• HTTPS: ' + (d.secureContext ? 'да' : 'нет') + '\n' +
+        '• Service Worker: ' + (d.serviceWorker ? 'есть' : 'нет') + '\n' +
+        '• PushManager: ' + (d.pushManager ? 'есть' : 'нет') + '\n' +
+        '• Notification API: ' + (d.notificationAPI ? 'есть' : 'нет') + '\n' +
+        '• Разрешение: ' + d.permission;
+    }
+
     async function subscribe() {
       subscribeButton.disabled = true;
-
       try {
-        if (!('serviceWorker' in navigator) ||
-            !('PushManager' in window) ||
-            !('Notification' in window)) {
-          throw new Error('Этот браузер не поддерживает Push-уведомления.');
+        const d = diagnostics();
+        if (!d.secureContext) throw new Error('Нужен защищённый HTTPS-адрес.');
+        if (!d.standalone) {
+          throw new Error('Страница открыта не внутри установленного приложения. Закрой эту вкладку, открой значок «Намаз» на экране Домой и перейди: Звонки → Подключить Push.\n\n' + describeEnvironment());
         }
-
-        if (!window.isSecureContext) {
-          throw new Error('Открой сайт через HTTPS.');
-        }
+        if (!d.serviceWorker) throw new Error('В этом контексте недоступен Service Worker.\n\n' + describeEnvironment());
+        if (!d.pushManager) throw new Error('iOS не предоставила PushManager. Проверь, что сайт запущен с иконки на экране Домой, а не во вкладке Safari.\n\n' + describeEnvironment());
+        if (!d.notificationAPI) throw new Error('Notification API недоступен в этом контексте.\n\n' + describeEnvironment());
 
         const permission = await Notification.requestPermission();
-
         if (permission !== 'granted') {
-          throw new Error('Разрешение на уведомления не выдано. Разреши их в настройках браузера.');
+          throw new Error(permission === 'denied'
+            ? 'Уведомления запрещены. Открой Настройки iPhone → Уведомления → Намаз и разреши уведомления, затем попробуй снова.'
+            : 'Разрешение на уведомления не выдано.');
         }
 
         const registration = await navigator.serviceWorker.register('./sw.js');
-        await navigator.serviceWorker.ready;
-
-        let subscription = await registration.pushManager.getSubscription();
+        const readyRegistration = await navigator.serviceWorker.ready;
+        const activeRegistration = readyRegistration || registration;
+        let subscription = await activeRegistration.pushManager.getSubscription();
 
         if (subscription) {
-          const existingKey = subscription.options &&
-            subscription.options.applicationServerKey;
-
-          // Если подписка создана с другим VAPID-ключом,
-          // удаляем её и создаём новую.
+          const existingKey = subscription.options && subscription.options.applicationServerKey;
           if (existingKey) {
             const existingBytes = new Uint8Array(existingKey);
             const expectedBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
             const sameKey = existingBytes.length === expectedBytes.length &&
               existingBytes.every((byte, index) => byte === expectedBytes[index]);
-
             if (!sameKey) {
               await subscription.unsubscribe();
               subscription = null;
@@ -128,7 +144,7 @@
         }
 
         if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
+          subscription = await activeRegistration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
           });
@@ -136,14 +152,13 @@
 
         subscriptionJson = JSON.stringify(subscription);
         copyButton.disabled = false;
-        setStatus('Подписка создана на этом устройстве. Скопируй её и сохрани в GitHub Secrets как PUSH_SUBSCRIPTION. Автоматическая отправка ещё требует настройки.');
+        setStatus('Подписка создана на этом устройстве. Скопируй её и сохрани в GitHub Secrets как PUSH_SUBSCRIPTION. Затем запусти GitHub Actions → test-push-now, чтобы проверить доставку.\n\n' + describeEnvironment());
       } catch (error) {
-        setStatus('Не удалось включить уведомления: ' + error.message);
+        setStatus('Не удалось включить Push: ' + error.message);
       } finally {
         subscribeButton.disabled = false;
       }
     }
-
     subscribeButton.addEventListener('click', subscribe);
 
     copyButton.addEventListener('click', async () => {
@@ -166,12 +181,14 @@
       }
     });
 
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      setStatus('Браузер не поддерживает Push-уведомления.');
+    const initial = diagnostics();
+    if (!initial.standalone) {
+      setStatus('Важно: сейчас страница открыта как вкладка браузера. Для Push на iPhone открой значок «Намаз» с экрана Домой, затем выбери «Звонки» → «Подключить Push».\n\n' + describeEnvironment());
+    } else if (!initial.serviceWorker || !initial.pushManager || !initial.notificationAPI) {
+      setStatus('В установленном приложении отсутствует одна из необходимых возможностей.\n\n' + describeEnvironment());
     } else {
-      setStatus('Готово к подключению. Нажми «Включить уведомления».');
+      setStatus('Готово к подключению. Нажми «Включить уведомления».\n\n' + describeEnvironment());
     }
   </script>
 </body>
 </html>
-```
