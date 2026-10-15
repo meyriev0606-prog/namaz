@@ -710,12 +710,6 @@
       <div class="notif-hero-sub" id="notifHeroSub">Включите, чтобы получать уведомления</div>
       <button class="notif-hero-btn" id="requestPermissionBtn">Включить уведомления</button>
     </div>
-    <div class="settings-group" style="padding:18px 20px;">
-      <div class="settings-group-title" style="padding:0 0 12px;border:0;">Push для закрытого приложения</div>
-      <p style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">Чтобы получать напоминания, когда «Намаз» закрыт, подключи Push-уведомления. Настройка откроется внутри установленного приложения.</p>
-      <button id="openPushSetupBtn" class="notif-hero-btn" style="width:100%;">🔔 Подключить Push</button>
-      <p style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:10px;">Обычные напоминания на этой странице не гарантируются после закрытия приложения.</p>
-    </div>
     <div class="settings-group">
       <div class="settings-group-title">Намазы</div>
       <div class="settings-row"><div class="settings-label">Фаджр</div><div class="toggle" data-prayer="fajr"></div></div>
@@ -1360,18 +1354,18 @@ window.addEventListener('load', function() {
       btn.disabled = true; return;
     }
     const perm = Notification.permission;
-    if (perm === 'granted' && notifySettings.enabled) {
-      status.textContent = '✅ Активны'; heroSub.textContent = 'Вы будете получать напоминания';
-      btn.textContent = 'Отключить уведомления'; btn.disabled = false;
-    } else if (perm === 'granted') {
-      status.textContent = 'Разрешение есть'; heroSub.textContent = 'Включите уведомления';
-      btn.textContent = 'Включить уведомления'; btn.disabled = false;
+    if (perm === 'granted') {
+      status.textContent = 'Разрешение браузера получено';
+      heroSub.textContent = 'Нажми кнопку, чтобы подключить Push для уведомлений даже при закрытом сайте';
+      btn.textContent = '🔔 Подключить Push'; btn.disabled = false;
     } else if (perm === 'denied') {
-      status.textContent = '❌ Запрещено'; heroSub.textContent = 'Разрешите в настройках браузера';
+      status.textContent = '❌ Разрешение запрещено';
+      heroSub.textContent = 'Разреши уведомления в настройках сайта Chrome';
       btn.textContent = 'Разрешение заблокировано'; btn.disabled = true;
     } else {
-      status.textContent = 'Не подключены'; heroSub.textContent = 'Включите, чтобы получать напоминания';
-      btn.textContent = 'Включить уведомления'; btn.disabled = false;
+      status.textContent = 'Не подключены';
+      heroSub.textContent = 'Нажми кнопку ниже, чтобы включить уведомления';
+      btn.textContent = '🔔 Включить уведомления'; btn.disabled = false;
     }
     document.querySelectorAll('[data-prayer]').forEach(el => {
       el.classList.toggle('on', notifySettings.prayers[el.dataset.prayer]);
@@ -1432,24 +1426,10 @@ window.addEventListener('load', function() {
     setTimeout(() => calculate(currentLat, currentLon), tomorrow - new Date());
   }
   function bindNotifications() {
-    const openPushSetupBtn = $('openPushSetupBtn');
-    if (openPushSetupBtn) {
-      openPushSetupBtn.addEventListener('click', () => {
+    const requestPermissionBtn = $('requestPermissionBtn');
+    if (requestPermissionBtn) {
+      requestPermissionBtn.addEventListener('click', () => {
         window.location.href = new URL('./subscribe.html', window.location.href).href;
-      });
-    }
-    if ($('requestPermissionBtn')) {
-      $('requestPermissionBtn').addEventListener('click', async () => {
-        if (notifySettings.enabled) {
-          notifySettings.enabled = false;
-          saveNotifySettings(); cancelAllScheduled(); updateNotifUI();
-          showToast('Уведомления выключены'); return;
-        }
-        const ok = await requestNotifPermission();
-        if (!ok) return updateNotifUI();
-        notifySettings.enabled = true;
-        saveNotifySettings(); updateNotifUI(); scheduleNotifications();
-        showToast('✅ Включены');
       });
     }
     document.querySelectorAll('[data-prayer]').forEach(el => {
