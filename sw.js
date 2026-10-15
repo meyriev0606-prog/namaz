@@ -2,7 +2,7 @@
 /* Seynaro — Service Worker
    Офлайн-режим и push-уведомления. */
 
-const CACHE_NAME = 'seynaro-namaz-v7';
+const CACHE_NAME = 'seynaro-namaz-v8';
 
 const ASSETS = [
   './',
@@ -56,7 +56,7 @@ self.addEventListener('fetch', event => {
 
   if (isPage) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-cache' }).then(response => {
+      fetch(event.request, { cache: 'no-store' }).then(response => {
         if (response && response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
