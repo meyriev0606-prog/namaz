@@ -1,0 +1,74 @@
+```yaml
+name: Seynaro — тест Push
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-push:
+    runs-on: ubuntu-latest
+
+    env:
+      VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+      PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+
+    steps:
+      - name: Установить Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Установить библиотеку
+        run: npm install --no-save web-push
+
+      - name: Отправить тестовое уведомление
+        run: |
+          node <<'NODE'
+          const webpush = require('web-push');
+
+          async function main() {
+            const {
+              VAPID_PUBLIC_KEY,
+              VAPID_PRIVATE_KEY,
+              VAPID_SUBJECT,
+              PUSH_SUBSCRIPTION
+            } = process.env;
+
+            if (
+              !VAPID_PUBLIC_KEY ||
+              !VAPID_PRIVATE_KEY ||
+              !VAPID_SUBJECT ||
+              !PUSH_SUBSCRIPTION
+            ) {
+              throw new Error('Не найдены необходимые секреты GitHub');
+            }
+
+            webpush.setVapidDetails(
+              VAPID_SUBJECT,
+              VAPID_PUBLIC_KEY,
+              VAPID_PRIVATE_KEY
+            );
+
+            const subscription = JSON.parse(PUSH_SUBSCRIPTION);
+
+            await webpush.sendNotification(
+              subscription,
+              JSON.stringify({
+                title: '🕌 Seynaro — тест',
+                body: 'Отлично! Push-уведомления работают, даже если сайт закрыт.',
+                tag: 'seynaro-test-' + Date.now(),
+                url: './'
+              })
+            );
+
+            console.log('Тестовый Push успешно передан сервису уведомлений.');
+          }
+
+          main().catch(error => {
+            console.error('Ошибка отправки Push:', error.message);
+            process.exit(1);
+          });
+          NODE
+```
