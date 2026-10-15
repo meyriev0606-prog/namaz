@@ -58,7 +58,13 @@
     <p class="hint">Разреши уведомления в окне браузера. Автоматическая отправка требует отдельной настройки сервера.</p>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // Публичные параметры Supabase. Publishable key разрешено использовать в браузере.
+    const SUPABASE_URL = "https://gkcrvhnviahbqfprurqi.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_4BrYzlCZgLyqVSJRFPEvXg_5Dd1Sjti";
+    const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
     // Публичный VAPID-ключ
     const VAPID_PUBLIC_KEY =
       'BCzLGtBynIij9lETBxYVEjvLKN6mAjoSe1oztAJRBFgON6RJg9J-VyunS2osZMq77KmMaxNNhhUc1Rv1wf8c8sw';
@@ -152,7 +158,54 @@
 
         subscriptionJson = JSON.stringify(subscription);
         copyButton.disabled = false;
-        setStatus('Подписка создана на этом устройстве. Скопируй её и сохрани в GitHub Secrets как PUSH_SUBSCRIPTION. Затем запусти GitHub Actions → test-push-now, чтобы проверить доставку.\n\n' + describeEnvironment());
+
+        // Сохраняем подписку в облаке, чтобы GitHub Actions мог отправлять
+        // уведомления даже при закрытом сайте.
+        if (!supabaseClient) throw new Error('Не загрузилась библиотека Supabase. Проверь интернет и обнови страницу.');
+        setStatus('Push подключён. Сохраняем устройство в облачную базу…');
+        let { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!sessionData.session) {
+          const authResult = await supabaseClient.auth.signInAnonymously();
+          if (authResult.error) throw new Error('Не удалось создать анонимную сессию. Проверь, включён ли Anonymous Sign-Ins в Supabase: ' + authResult.error.message);
+          sessionData = { session: authResult.data.session };
+        }
+        const savedCity = localStorage.getItem('namaz_city') || '55.7558,37.6173';
+        const coords = savedCity.split(',').map(Number);
+        const latitude = coords[0], longitude = coords[1];
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+          throw new Error('Не удалось определить координаты города. Открой основное приложение, выбери город и повтори подключение.');
+        }
+        let appSettings = {};
+        let appNotify = {};
+        try { appSettings = JSON.parse(localStorage.getItem('namaz_settings') || '{}'); } catch (_) {}
+        try { appNotify = JSON.parse(localStorage.getItem('namaz_notify') || '{}'); } catch (_) {}
+        const prayers = appNotify.prayers || { fajr: true, dhuhr: true, asr: true, maghrib: true, isha: true };
+        const deviceRow = {
+          owner_id: sessionData.session.user.id,
+          endpoint: subscription.endpoint,
+          subscription: subscription.toJSON(),
+          latitude,
+          longitude,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+          city_label: localStorage.getItem('namaz_gps') === '1' ? 'Моё местоположение' : 'Выбранный город',
+          calculation_method: appSettings.method || 'MuslimWorldLeague',
+          madhab: appSettings.madhab === 'hanafi' ? 'hanafi' : 'shafi',
+          prayer_preferences: prayers,
+          notify_before_minutes: Number.isFinite(Number(appNotify.advanceMinutes)) ? Number(appNotify.advanceMinutes) : 10,
+          notify_at_start: appNotify.atStart !== false,
+          enabled: appNotify.enabled !== false
+        };
+        const { error: saveError } = await supabaseClient
+          .from('prayer_devices')
+          .upsert(deviceRow, { onConflict: 'endpoint' });
+        if (saveError) {
+          if (saveError.code === '42P01' || saveError.code === 'PGRST205') {
+            throw new Error('Таблица prayer_devices не найдена. Сначала выполни supabase/schema.sql в SQL Editor.');
+          }
+          throw new Error('Push создан, но облачная запись не сохранена: ' + saveError.message + '. Проверь SQL-схему и Anonymous Sign-Ins в Supabase.');
+        }
+        setStatus('✅ Устройство подключено к облачной базе!\nГород и настройки сохранены. Следующий шаг — добавить секреты Supabase в GitHub Actions, чтобы сервер отправлял уведомления при закрытом сайте.\n\n' + describeEnvironment());
       } catch (error) {
         setStatus('Не удалось включить Push: ' + error.message);
       } finally {
