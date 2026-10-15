@@ -1167,8 +1167,15 @@ window.addEventListener('load', function() {
       .forEach(c => {
         const el = document.createElement('div');
         el.className = 'compass-cardinal ' + c.cls;
+        el.dataset.bearing = String(c.deg);
         el.textContent = c.label;
-        el.style.transform = `rotate(${c.deg}deg)`;
+        // Размещаем буквы по окружности отдельно от их ориентации:
+        // буквы остаются читаемыми при вращении циферблата.
+        const rad = c.deg * Math.PI / 180;
+        el.style.left = (150 + Math.sin(rad) * 124) + 'px';
+        el.style.top = (150 - Math.cos(rad) * 124) + 'px';
+        el.style.margin = '0';
+        el.style.transform = 'translate(-50%, -50%)';
         dial.appendChild(el);
       });
   }
@@ -1176,7 +1183,14 @@ window.addEventListener('load', function() {
   function updateCompass() {
     // Направление Киблы считается по координатам, стрелка учитывает курс устройства.
     const heading = normalizeDegrees(manualHeading !== null ? manualHeading : deviceHeading);
-    if ($('compassDial')) $('compassDial').style.transform = 'rotate(' + (-heading) + 'deg)';
+    const dial = $('compassDial');
+    if (dial) {
+      dial.style.transform = 'rotate(' + (-heading) + 'deg)';
+      // Циферблат вращается, а подписи сторон света компенсируют этот поворот.
+      dial.querySelectorAll('.compass-cardinal').forEach(label => {
+        label.style.transform = 'translate(-50%, -50%) rotate(' + heading + 'deg)';
+      });
+    }
     if ($('qiblaArrow')) $('qiblaArrow').style.transform = 'rotate(' + normalizeDegrees(qiblaBearing - heading) + 'deg)';
   }
   let compassListenersAttached = false;
