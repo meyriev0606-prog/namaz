@@ -495,6 +495,8 @@
   .quran-controls { display:flex; gap:8px; margin-bottom:12px; }
   .quran-controls button,.quran-action { flex:1; border:1px solid var(--panel-border-strong); border-radius:11px; padding:10px 8px; background:var(--panel-strong); color:var(--text); font:600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; cursor:pointer; }
   #azkarMorningBtn.active, #azkarEveningBtn.active { background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 5px 16px rgba(99,102,241,.25); }
+  .azkar-mode-banner { padding:12px 14px; margin:10px 0 14px; border-radius:12px; background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.28); color:var(--text); font-size:13px; line-height:1.55; }
+  .azkar-mode-banner b { display:block; margin-bottom:3px; font-size:15px; }
   .quran-verse { padding:16px; margin:10px 0; background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; }
   .quran-verse.saved { border-color:var(--accent); }
   .quran-arabic { font-size:25px; line-height:1.9; text-align:right; direction:rtl; margin-bottom:10px; }
@@ -607,7 +609,7 @@
       <li><div class="release-check">✓</div><div><b>Обновления приложения</b><span>При подключении к интернету приложение чаще проверяет наличие новой версии.</span></div></li>
     </ul>
     <button class="release-close" id="releaseCloseBtn" type="button">Понятно, продолжить</button>
-    <div class="release-version">Версия обновления 18</div>
+    <div class="release-version">Версия обновления 19</div>
   </section>
 </div>
 
@@ -1909,8 +1911,12 @@ window.addEventListener('load', function() {
     morningBtn.setAttribute('aria-pressed', String(isMorning));
     eveningBtn.setAttribute('aria-pressed', String(!isMorning));
     const selectedAzkar = isMorning ? morning : evening;
-    const sectionTitle = isMorning ? '🌅 Утренние азкары' : '🌙 Вечерние азкары';
-    $('azkarContent').innerHTML = '<h3 class="azkar-section-title" style="font-size:16px;margin:12px 0;color:var(--text);">' + sectionTitle + '</h3>' + selectedAzkar.map(a =>
+    const sectionTitle = isMorning ? '🌅 Вы открыли утренние азкары' : '🌙 Вы открыли вечерние азкары';
+    const periodHint = isMorning
+      ? 'Утренний набор выбран. Ниже отображаются поминания для утра.'
+      : 'Вечерний набор выбран. Ниже отображаются поминания для вечера.';
+    $('azkarContent').dataset.kind = kind;
+    $('azkarContent').innerHTML = '<div class="azkar-mode-banner"><b>' + sectionTitle + '</b>' + periodHint + '</div>' + selectedAzkar.map(a =>
       '<div class="azkar-card"><h3>' + safeText(a[0]) +
       '</h3><p class="quran-arabic" lang="ar" style="font-size:22px;">' + safeText(a[1]) +
       '</p><p class="azkar-translit"><span>Транскрипция</span>' + safeText(a[3]) +
@@ -1951,8 +1957,14 @@ window.addEventListener('load', function() {
         }
       }
     });
-    $('azkarMorningBtn').addEventListener('click', () => renderAzkar('morning'));
-    $('azkarEveningBtn').addEventListener('click', () => renderAzkar('evening'));
+    $('azkarMorningBtn').addEventListener('click', () => {
+      renderAzkar('morning');
+      $('azkarContent').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('azkarEveningBtn').addEventListener('click', () => {
+      renderAzkar('evening');
+      $('azkarContent').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     $('tasbihTap').addEventListener('click', () => { tasbihCount++; updateTasbih(); });
     $('tasbihMinus').addEventListener('click', () => { tasbihCount = Math.max(0, tasbihCount - 1); updateTasbih(); });
     $('tasbihReset').addEventListener('click', () => { if (confirm('Сбросить счётчик тасбиха?')) { tasbihCount = 0; updateTasbih(); } });
@@ -2144,7 +2156,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=18', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=19', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
