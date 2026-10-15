@@ -2,7 +2,7 @@
 /* Seynaro — Service Worker
    Офлайн-режим и push-уведомления. */
 
-const CACHE_NAME = 'seynaro-namaz-v5';
+const CACHE_NAME = 'seynaro-namaz-v6';
 
 const ASSETS = [
   './',
@@ -39,42 +39,46 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Загрузка страниц и ресурсов
+// Страницы приложения: сначала сеть, чтобы пользователи получали свежую версию.
+// Если интернета нет — используем кэш для офлайн-режима.
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-
-  // Сторонние ресурсы: сеть, затем кэш при отсутствии интернета
   if (url.origin !== self.location.origin) {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+    return;
+  }
+
+  const isPage = event.request.mode === 'navigate' ||
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/subscribe.html');
+
+  if (isPage) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(event.request, { cache: 'no-cache' }).then(response => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      }).catch(() => caches.match(event.request).then(cached =>
+        cached || caches.match('./index.html')
+      ))
     );
     return;
   }
 
-  // Ресурсы самого приложения
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-
       return fetch(event.request).then(response => {
         if (response && response.status === 200) {
           const copy = response.clone();
-
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, copy);
-          });
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
         }
-
         return response;
-      }).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-
-        return Response.error();
-      });
+      }).catch(() => Response.error());
     })
   );
 });
