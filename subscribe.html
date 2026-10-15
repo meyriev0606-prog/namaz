@@ -194,7 +194,8 @@
           prayer_preferences: prayers,
           notify_before_minutes: Number.isFinite(Number(appNotify.advanceMinutes)) ? Number(appNotify.advanceMinutes) : 10,
           notify_at_start: appNotify.atStart !== false,
-          enabled: appNotify.enabled === true
+          // Нажатие «Включить уведомления» на этой странице явно включает облачную доставку.
+          enabled: true
         };
         const { error: saveError } = await supabaseClient
           .from('prayer_devices')
