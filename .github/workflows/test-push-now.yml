@@ -1,4 +1,3 @@
-```yaml
 name: Seynaro — тест Push
 
 on:
@@ -23,7 +22,7 @@ jobs:
       - name: Установить библиотеку
         run: npm install --no-save web-push
 
-      - name: Отправить тестовое уведомление
+      - name: Отправить тестовое уведомление и показать результат сервера
         run: |
           node <<'NODE'
           const webpush = require('web-push');
@@ -45,30 +44,37 @@ jobs:
               throw new Error('Не найдены необходимые секреты GitHub');
             }
 
+            const subscription = JSON.parse(PUSH_SUBSCRIPTION);
+
+            if (!subscription.endpoint || !subscription.keys) {
+              throw new Error('PUSH_SUBSCRIPTION имеет неверный формат');
+            }
+
             webpush.setVapidDetails(
               VAPID_SUBJECT,
               VAPID_PUBLIC_KEY,
               VAPID_PRIVATE_KEY
             );
 
-            const subscription = JSON.parse(PUSH_SUBSCRIPTION);
+            console.log('Подписка загружена. Push-сервис:', new URL(subscription.endpoint).hostname);
+            console.log('Отправляем уникальное тестовое уведомление…');
 
-            await webpush.sendNotification(
+            const response = await webpush.sendNotification(
               subscription,
               JSON.stringify({
-                title: '🕌 Seynaro — тест',
-                body: 'Отлично! Push-уведомления работают, даже если сайт закрыт.',
-                tag: 'seynaro-test-' + Date.now(),
+                title: '🕌 Seynaro — тест доставки',
+                body: 'Если ты видишь это сообщение, Push-уведомления работают.',
+                tag: 'seynaro-diagnostic-' + Date.now(),
                 url: './'
               })
             );
 
-            console.log('Тестовый Push успешно передан сервису уведомлений.');
+            console.log('Push-сервис принял запрос. HTTP статус:', response.statusCode);
+            console.log('Ответ получен. Это подтверждает приём запроса Push-сервисом, но не гарантирует отображение на устройстве.');
           }
 
           main().catch(error => {
-            console.error('Ошибка отправки Push:', error.message);
+            console.error('Ошибка отправки Push:', error.statusCode || '', error.message);
             process.exit(1);
           });
           NODE
-```
