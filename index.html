@@ -1715,8 +1715,20 @@ window.addEventListener('load', function() {
 (function() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(reg => console.log('✅ Service Worker зарегистрирован:', reg.scope))
+      navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+        .then(async reg => {
+          console.log('✅ Service Worker зарегистрирован:', reg.scope);
+          try { await reg.update(); } catch (err) { console.warn('Проверка обновления отложена:', err); }
+          reg.addEventListener('updatefound', () => {
+            const worker = reg.installing;
+            if (!worker) return;
+            worker.addEventListener('statechange', () => {
+              if (worker.state === 'activated' && navigator.serviceWorker.controller) {
+                window.location.reload();
+              }
+            });
+          });
+        })
         .catch(err => console.error('❌ Ошибка SW:', err));
     });
   }
