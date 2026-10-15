@@ -118,6 +118,9 @@ jobs:
             const coords = new adhan.Coordinates(Number(device.latitude), Number(device.longitude));
             const params = getParams(device.calculation_method, device.madhab);
             const prayers = new adhan.PrayerTimes(coords, now, params);
+            console.log('Диагностика устройства:', device.id);
+            console.log('Часовой пояс:', timezone, '| Локальное время:', now.toLocaleString('ru-RU', { timeZone: timezone }));
+            console.log('Дата расчёта (UTC):', now.toISOString());
             const preferences = device.prayer_preferences || {};
             const advanceMinutes = Math.max(0, Math.min(120, Number(device.notify_before_minutes ?? 10)));
             const subscription = device.subscription;
