@@ -710,6 +710,12 @@
       <div class="notif-hero-sub" id="notifHeroSub">Включите, чтобы получать уведомления</div>
       <button class="notif-hero-btn" id="requestPermissionBtn">Включить уведомления</button>
     </div>
+    <div class="settings-group" style="padding:18px 20px;">
+      <div class="settings-group-title" style="padding:0 0 12px;border:0;">Push для закрытого приложения</div>
+      <p style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:12px;">Чтобы получать напоминания, когда «Намаз» закрыт, подключи Push-уведомления. Настройка откроется внутри установленного приложения.</p>
+      <button id="openPushSetupBtn" class="notif-hero-btn" style="width:100%;">🔔 Подключить Push</button>
+      <p style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-top:10px;">Обычные напоминания на этой странице не гарантируются после закрытия приложения.</p>
+    </div>
     <div class="settings-group">
       <div class="settings-group-title">Намазы</div>
       <div class="settings-row"><div class="settings-label">Фаджр</div><div class="toggle" data-prayer="fajr"></div></div>
@@ -1426,6 +1432,12 @@ window.addEventListener('load', function() {
     setTimeout(() => calculate(currentLat, currentLon), tomorrow - new Date());
   }
   function bindNotifications() {
+    const openPushSetupBtn = $('openPushSetupBtn');
+    if (openPushSetupBtn) {
+      openPushSetupBtn.addEventListener('click', () => {
+        window.location.href = new URL('./subscribe.html', window.location.href).href;
+      });
+    }
     if ($('requestPermissionBtn')) {
       $('requestPermissionBtn').addEventListener('click', async () => {
         if (notifySettings.enabled) {
