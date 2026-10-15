@@ -5,231 +5,173 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101827">
-  <title>Seynaro — подключение уведомлений</title>
+  <title>Seynaro — Push-уведомления</title>
   <style>
     * { box-sizing: border-box; }
-
     body {
       margin: 0;
-      padding: 24px 16px;
       min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
       background: #101827;
       color: #f3f6fc;
-      font-family: Arial, sans-serif;
+      font: 16px/1.5 Arial, sans-serif;
     }
-
     main {
-      max-width: 540px;
-      margin: 30px auto;
-      padding: 24px;
-      background: #1b2638;
-      border: 1px solid #344158;
+      width: 100%;
+      max-width: 460px;
+      padding: 28px;
+      border: 1px solid #2d3b51;
       border-radius: 20px;
+      background: #182337;
     }
-
-    h1 { margin-top: 0; font-size: 26px; }
-    p { color: #c3cede; line-height: 1.6; }
-
+    h1 { margin-top: 0; font-size: 25px; }
+    p { color: #c2cde0; }
     button {
       width: 100%;
-      padding: 15px;
-      margin: 8px 0;
+      margin-top: 12px;
+      padding: 14px;
       border: 0;
-      border-radius: 12px;
+      border-radius: 10px;
       background: #4f8cff;
       color: white;
       font-size: 16px;
       font-weight: bold;
       cursor: pointer;
     }
-
-    button:disabled { opacity: .5; }
-
-    textarea {
-      width: 100%;
-      min-height: 150px;
-      padding: 12px;
-      border-radius: 10px;
-      border: 1px solid #43516a;
-      background: #101827;
-      color: white;
-      overflow-wrap: anywhere;
-    }
-
+    button:disabled { opacity: .6; cursor: wait; }
     #status {
-      margin-top: 16px;
-      padding: 12px;
-      border-radius: 10px;
-      background: #101827;
-      white-space: pre-wrap;
+      margin-top: 18px;
       overflow-wrap: anywhere;
+      white-space: pre-wrap;
     }
-
     .hint { font-size: 13px; }
-    a { color: #8eb8ff; }
   </style>
 </head>
 <body>
-<main>
-  <h1>🔔 Seynaro</h1>
-  <p>Подключение уведомлений о времени намаза.</p>
-  <p>Нажми кнопку и разреши уведомления в браузере.</p>
+  <main>
+    <h1>Seynaro — Push-уведомления</h1>
+    <p>Подключи это устройство, чтобы получать напоминания, даже когда сайт закрыт.</p>
+    <button id="subscribeButton">Включить уведомления</button>
+    <button id="copyButton" disabled>Скопировать подписку</button>
+    <p id="status" role="status">Проверяем поддержку уведомлений…</p>
+    <p class="hint">Разреши уведомления в окне браузера. Автоматическая отправка требует отдельной настройки сервера.</p>
+  </main>
 
-  <button id="subscribeBtn">Подключить уведомления</button>
-  <button id="copyBtn" hidden>Скопировать подписку</button>
+  <script>
+    // Публичный VAPID-ключ
+    const VAPID_PUBLIC_KEY =
+      'BCzLGtBynIij9lETBxYVEjvLKN6mAjoSe1oztAJRBFgON6RJg9J-VyunS2osZMq77KmMaxNNhhUc1Rv1wf8c8sw';
 
-  <div id="status" role="status" aria-live="polite">
-    Ожидание подключения.
-  </div>
+    const statusEl = document.getElementById('status');
+    const subscribeButton = document.getElementById('subscribeButton');
+    const copyButton = document.getElementById('copyButton');
 
-  <div id="result" hidden>
-    <p><strong>Данные подписки</strong></p>
-    <textarea id="subscription" readonly></textarea>
-    <p class="hint">Не публикуй данные подписки в открытом доступе.</p>
-  </div>
+    let subscriptionJson = '';
 
-  <p class="hint"><a href="./">Вернуться на Seynaro</a></p>
-</main>
-
-<script>
-  // Public Key. Последние две буквы замени на свои.
-  const VAPID_PUBLIC_KEY =
-    'BCzLGtBynIij9lETBxYVEjvLKN6mAjoSe1oztAJRBFgON6RJg9J-VyunS2osZMq77KmMaxNNhhUc1Rv1wf8c8sw';
-
-  const subscribeBtn = document.getElementById('subscribeBtn');
-  const copyBtn = document.getElementById('copyBtn');
-  const statusBox = document.getElementById('status');
-  const resultBox = document.getElementById('result');
-  const subscriptionBox = document.getElementById('subscription');
-
-  function setStatus(message) {
-    statusBox.textContent = message;
-  }
-
-  function decodeBase64Url(value) {
-    const padding = '='.repeat((4 - value.length % 4) % 4);
-    const base64 = (value + padding)
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
-
-    const raw = atob(base64);
-    const bytes = new Uint8Array(raw.length);
-
-    for (let i = 0; i < raw.length; i++) {
-      bytes[i] = raw.charCodeAt(i);
+    function setStatus(message) {
+      statusEl.textContent = message;
     }
 
-    return bytes;
-  }
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+      const raw = atob(base64);
+      return Uint8Array.from(raw, char => char.charCodeAt(0));
+    }
 
-  async function subscribe() {
-    subscribeBtn.disabled = true;
+    async function subscribe() {
+      subscribeButton.disabled = true;
 
-    try {
-      if (
-        !VAPID_PUBLIC_KEY ||
-        VAPID_PUBLIC_KEY.includes('XX')
-      ) {
-        throw new Error('Замени XX на последние две буквы Public Key.');
-      }
+      try {
+        if (!('serviceWorker' in navigator) ||
+            !('PushManager' in window) ||
+            !('Notification' in window)) {
+          throw new Error('Этот браузер не поддерживает Push-уведомления.');
+        }
 
-      if (!window.isSecureContext) {
-        throw new Error('Открой страницу через HTTPS.');
-      }
+        if (!window.isSecureContext) {
+          throw new Error('Открой сайт через HTTPS.');
+        }
 
-      if (!('serviceWorker' in navigator)) {
-        throw new Error('Браузер не поддерживает Service Worker.');
-      }
+        const permission = await Notification.requestPermission();
 
-      if (!('PushManager' in window)) {
-        throw new Error('Браузер не поддерживает Push-уведомления.');
-      }
+        if (permission !== 'granted') {
+          throw new Error('Разрешение на уведомления не выдано. Разреши их в настройках браузера.');
+        }
 
-      if (!('Notification' in window)) {
-        throw new Error('Браузер не поддерживает уведомления.');
-      }
+        const registration = await navigator.serviceWorker.register('./sw.js');
+        await navigator.serviceWorker.ready;
 
-      setStatus('Регистрируем Service Worker…');
+        let subscription = await registration.pushManager.getSubscription();
 
-      const registration = await navigator.serviceWorker.register('./sw.js', {
-        scope: './'
-      });
+        if (subscription) {
+          const existingKey = subscription.options &&
+            subscription.options.applicationServerKey;
 
-      await navigator.serviceWorker.ready;
+          // Если подписка создана с другим VAPID-ключом,
+          // удаляем её и создаём новую.
+          if (existingKey) {
+            const existingBytes = new Uint8Array(existingKey);
+            const expectedBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+            const sameKey = existingBytes.length === expectedBytes.length &&
+              existingBytes.every((byte, index) => byte === expectedBytes[index]);
 
-      let permission = Notification.permission;
-
-      if (permission === 'default') {
-        permission = await Notification.requestPermission();
-      }
-
-      if (permission !== 'granted') {
-        throw new Error('Разреши уведомления в настройках браузера.');
-      }
-
-      setStatus('Создаём подписку устройства…');
-
-      let subscription = await registration.pushManager.getSubscription();
-
-      if (subscription) {
-        const existingKey = subscription.options.applicationServerKey;
-
-        if (existingKey) {
-          const oldBytes = new Uint8Array(existingKey);
-          const newBytes = decodeBase64Url(VAPID_PUBLIC_KEY);
-
-          const sameKey =
-            oldBytes.length === newBytes.length &&
-            oldBytes.every((byte, index) => byte === newBytes[index]);
-
-          if (!sameKey) {
-            await subscription.unsubscribe();
-            subscription = null;
+            if (!sameKey) {
+              await subscription.unsubscribe();
+              subscription = null;
+            }
           }
         }
+
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+          });
+        }
+
+        subscriptionJson = JSON.stringify(subscription);
+        copyButton.disabled = false;
+        setStatus('Подписка создана на этом устройстве. Скопируй её и сохрани в GitHub Secrets как PUSH_SUBSCRIPTION. Автоматическая отправка ещё требует настройки.');
+      } catch (error) {
+        setStatus('Не удалось включить уведомления: ' + error.message);
+      } finally {
+        subscribeButton.disabled = false;
       }
+    }
 
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: decodeBase64Url(VAPID_PUBLIC_KEY)
-        });
+    subscribeButton.addEventListener('click', subscribe);
+
+    copyButton.addEventListener('click', async () => {
+      if (!subscriptionJson) return;
+
+      try {
+        await navigator.clipboard.writeText(subscriptionJson);
+        setStatus('Подписка скопирована. Сохрани её в GitHub Secrets как PUSH_SUBSCRIPTION.');
+      } catch (error) {
+        setStatus('Автоматическое копирование недоступно. Подписка отображена ниже — скопируй её вручную.');
+        const output = document.createElement('textarea');
+        output.value = subscriptionJson;
+        output.rows = 6;
+        output.style.width = '100%';
+        output.style.marginTop = '12px';
+        output.setAttribute('aria-label', 'Данные подписки');
+        document.querySelector('main').appendChild(output);
+        output.focus();
+        output.select();
       }
+    });
 
-      subscriptionBox.value = JSON.stringify(
-        subscription.toJSON(),
-        null,
-        2
-      );
-
-      resultBox.hidden = false;
-      copyBtn.hidden = false;
-
-      setStatus(
-        'Подписка создана на этом устройстве. ' +
-        'Автоматическая отправка напоминаний ещё не настроена.'
-      );
-
-    } catch (error) {
-      setStatus('Не удалось подключить уведомления:\n' + error.message);
-    } finally {
-      subscribeBtn.disabled = false;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setStatus('Браузер не поддерживает Push-уведомления.');
+    } else {
+      setStatus('Готово к подключению. Нажми «Включить уведомления».');
     }
-  }
-
-  subscribeBtn.addEventListener('click', subscribe);
-
-  copyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(subscriptionBox.value);
-      setStatus('Подписка скопирована.');
-    } catch (error) {
-      subscriptionBox.focus();
-      subscriptionBox.select();
-      setStatus('Выдели текст подписки и скопируй его вручную.');
-    }
-  });
-</script>
+  </script>
 </body>
 </html>
 ```

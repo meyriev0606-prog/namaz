@@ -1,0 +1,50 @@
+```yaml
+name: Seynaro Push Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  send-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Send test notification
+        env:
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+        run: |
+          npm install --no-save web-push
+
+          node --input-type=module <<'NODE'
+          import webpush from 'web-push';
+
+          const subscription = JSON.parse(
+            process.env.PUSH_SUBSCRIPTION
+          );
+
+          webpush.setVapidDetails(
+            process.env.VAPID_SUBJECT,
+            process.env.VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+          );
+
+          await webpush.sendNotification(
+            subscription,
+            JSON.stringify({
+              title: 'Seynaro — тест',
+              body: 'Отлично! Тестовое Push-уведомление получено.',
+              url: './'
+            })
+          );
+
+          console.log('Тестовое уведомление отправлено.');
+          NODE
+```
