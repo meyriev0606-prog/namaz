@@ -88,9 +88,15 @@
       return Uint8Array.from(raw, char => char.charCodeAt(0));
     }
 
+    function isIOSDevice() {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
     function diagnostics() {
       const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
       return {
+        iosDevice: isIOSDevice(),
         secureContext: window.isSecureContext,
         serviceWorker: 'serviceWorker' in navigator,
         pushManager: 'PushManager' in window,
@@ -116,17 +122,19 @@
       try {
         const d = diagnostics();
         if (!d.secureContext) throw new Error('Нужен защищённый HTTPS-адрес.');
-        if (!d.standalone) {
-          throw new Error('Страница открыта не внутри установленного приложения. Закрой эту вкладку, открой значок «Намаз» на экране Домой и перейди: Звонки → Подключить Push.\n\n' + describeEnvironment());
+        // На Windows/Android Push работает и в обычной вкладке Chrome.
+        // Установка на экран Домой обязательна для Web Push на iPhone/iPad.
+        if (d.iosDevice && !d.standalone) {
+          throw new Error('На iPhone/iPad Push доступен только в установленном веб-приложении. Добавь Seynaro на экран Домой, открой его значок и повтори подключение.\n\n' + describeEnvironment());
         }
         if (!d.serviceWorker) throw new Error('В этом контексте недоступен Service Worker.\n\n' + describeEnvironment());
-        if (!d.pushManager) throw new Error('iOS не предоставила PushManager. Проверь, что сайт запущен с иконки на экране Домой, а не во вкладке Safari.\n\n' + describeEnvironment());
+        if (!d.pushManager) throw new Error('Этот браузер не предоставляет PushManager. Обнови Chrome и проверь, что уведомления не отключены политикой браузера или Windows.\n\n' + describeEnvironment());
         if (!d.notificationAPI) throw new Error('Notification API недоступен в этом контексте.\n\n' + describeEnvironment());
 
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
           throw new Error(permission === 'denied'
-            ? 'Уведомления запрещены. Открой Настройки iPhone → Уведомления → Намаз и разреши уведомления, затем попробуй снова.'
+            ? 'Уведомления запрещены для этого сайта. Нажми значок настроек сайта рядом с адресом в Chrome → Настройки сайта → Уведомления → Разрешить, затем обнови страницу и попробуй снова.'
             : 'Разрешение на уведомления не выдано.');
         }
 
@@ -236,12 +244,12 @@
     });
 
     const initial = diagnostics();
-    if (!initial.standalone) {
-      setStatus('Важно: сейчас страница открыта как вкладка браузера. Для Push на iPhone открой значок «Намаз» с экрана Домой, затем выбери «Звонки» → «Подключить Push».\n\n' + describeEnvironment());
+    if (initial.iosDevice && !initial.standalone) {
+      setStatus('Для Push на iPhone/iPad сначала добавь Seynaro на экран Домой и открой приложение через его значок.\n\n' + describeEnvironment());
     } else if (!initial.serviceWorker || !initial.pushManager || !initial.notificationAPI) {
       setStatus('В установленном приложении отсутствует одна из необходимых возможностей.\n\n' + describeEnvironment());
     } else {
-      setStatus('Готово к подключению. Нажми «Включить уведомления».\n\n' + describeEnvironment());
+      setStatus('Готово к подключению. Нажми «Включить уведомления». В Chrome на Windows установка сайта как приложения не обязательна.\n\n' + describeEnvironment());
     }
   </script>
 </body>
