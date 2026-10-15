@@ -494,6 +494,7 @@
   .quran-select { width:100%; padding:13px 14px; border-radius:12px; border:1px solid var(--panel-border-strong); background:var(--input-bg); color:var(--text); font:inherit; margin-bottom:10px; }
   .quran-controls { display:flex; gap:8px; margin-bottom:12px; }
   .quran-controls button,.quran-action { flex:1; border:1px solid var(--panel-border-strong); border-radius:11px; padding:10px 8px; background:var(--panel-strong); color:var(--text); font:600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; cursor:pointer; }
+  #azkarMorningBtn.active, #azkarEveningBtn.active { background:linear-gradient(135deg,var(--accent),var(--accent-2)); border-color:transparent; color:#fff; box-shadow:0 5px 16px rgba(99,102,241,.25); }
   .quran-verse { padding:16px; margin:10px 0; background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; }
   .quran-verse.saved { border-color:var(--accent); }
   .quran-arabic { font-size:25px; line-height:1.9; text-align:right; direction:rtl; margin-bottom:10px; }
@@ -606,7 +607,7 @@
       <li><div class="release-check">✓</div><div><b>Обновления приложения</b><span>При подключении к интернету приложение чаще проверяет наличие новой версии.</span></div></li>
     </ul>
     <button class="release-close" id="releaseCloseBtn" type="button">Понятно, продолжить</button>
-    <div class="release-version">Версия обновления 17</div>
+    <div class="release-version">Версия обновления 18</div>
   </section>
 </div>
 
@@ -866,8 +867,8 @@
     </div>
     <div class="settings-group">
       <div class="settings-group-title">Ежедневные азкары</div>
-      <div class="quran-controls"><button type="button" id="azkarMorningBtn">🌅 Утренние</button><button type="button" id="azkarEveningBtn">🌙 Вечерние</button></div>
-      <div id="azkarContent"></div>
+      <div class="quran-controls"><button type="button" id="azkarMorningBtn" aria-pressed="false">🌅 Утренние</button><button type="button" id="azkarEveningBtn" aria-pressed="false">🌙 Вечерние</button></div>
+      <div id="azkarContent" aria-live="polite"><div class="quran-subtitle">Выберите «🌅 Утренние» или «🌙 Вечерние», чтобы открыть соответствующие азкары.</div></div>
     </div>
     <div class="settings-group">
       <div class="settings-group-title">📿 Счётчик тасбиха</div>
@@ -1900,7 +1901,16 @@ window.addEventListener('load', function() {
       ['Сура «Ан-Нас»','قُلْ أَعُوذُ بِرَبِّ النَّاسِ','Прочитайте суру полностью 3 раза.','Куль а‘узу би-раббин-нас.','Скажи: «Прибегаю к защите Господа людей».'],
       ['Просьба о прощении','أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ','Повторяйте это поминание, прося прощения у Аллаха.','Астагфируллаха ва атубу иляйх.','Прошу у Аллаха прощения и каюсь перед Ним.']
     ];
-    $('azkarContent').innerHTML = (kind === 'morning' ? morning : evening).map(a =>
+    const isMorning = kind === 'morning';
+    const morningBtn = $('azkarMorningBtn');
+    const eveningBtn = $('azkarEveningBtn');
+    morningBtn.classList.toggle('active', isMorning);
+    eveningBtn.classList.toggle('active', !isMorning);
+    morningBtn.setAttribute('aria-pressed', String(isMorning));
+    eveningBtn.setAttribute('aria-pressed', String(!isMorning));
+    const selectedAzkar = isMorning ? morning : evening;
+    const sectionTitle = isMorning ? '🌅 Утренние азкары' : '🌙 Вечерние азкары';
+    $('azkarContent').innerHTML = '<h3 class="azkar-section-title" style="font-size:16px;margin:12px 0;color:var(--text);">' + sectionTitle + '</h3>' + selectedAzkar.map(a =>
       '<div class="azkar-card"><h3>' + safeText(a[0]) +
       '</h3><p class="quran-arabic" lang="ar" style="font-size:22px;">' + safeText(a[1]) +
       '</p><p class="azkar-translit"><span>Транскрипция</span>' + safeText(a[3]) +
@@ -2134,7 +2144,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=17', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=18', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
