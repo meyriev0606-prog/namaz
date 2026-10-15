@@ -540,9 +540,69 @@
   .quran-translit-toggle input { width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
   .quran-transliteration { margin:12px 0; padding:12px 14px; border-left:3px solid #10b981; border-radius:8px; background:rgba(16,185,129,.08); color:var(--text); font-size:15px; line-height:1.8; }
   .quran-transliteration span { display:block; margin-bottom:4px; color:#10b981; font-size:10px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; }
+
+  /* Окно описания обновления Seynaro */
+  .release-overlay {
+    position: fixed; inset: 0; z-index: 10000; display: none;
+    align-items: center; justify-content: center; padding: 20px;
+    background: rgba(2,6,23,.78); backdrop-filter: blur(10px);
+  }
+  .release-overlay.open { display: flex; animation: releaseFade .22s ease-out; }
+  @keyframes releaseFade { from { opacity: 0; } to { opacity: 1; } }
+  .release-modal {
+    width: 100%; max-width: 420px; max-height: min(82vh, 720px); overflow: auto;
+    border: 1px solid var(--panel-border-strong); border-radius: 24px; padding: 24px;
+    background: linear-gradient(155deg, var(--bg-2), var(--bg-1));
+    color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.45);
+  }
+  .release-icon {
+    width: 58px; height: 58px; display: grid; place-items: center; margin-bottom: 16px;
+    border-radius: 18px; font-size: 29px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 8px 24px rgba(99,102,241,.35);
+  }
+  .release-eyebrow { color: #a5b4fc; font-size: 10px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase; }
+  .release-title { font-size: 24px; line-height: 1.2; font-weight: 850; margin: 7px 0 8px; }
+  .release-subtitle { color: var(--text-muted); font-size: 13px; line-height: 1.55; margin-bottom: 20px; }
+  .release-list { list-style: none; display: grid; gap: 13px; margin-bottom: 22px; }
+  .release-list li { display: flex; align-items: flex-start; gap: 11px; font-size: 13px; line-height: 1.5; }
+  .release-check {
+    display: grid; place-items: center; flex: 0 0 25px; height: 25px; border-radius: 9px;
+    background: rgba(16,185,129,.13); color: #34d399; font-weight: 900;
+  }
+  .release-list b { display: block; font-size: 13px; margin-bottom: 2px; }
+  .release-list span { color: var(--text-muted); }
+  .release-close {
+    width: 100%; border: 0; border-radius: 13px; padding: 14px 18px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;
+    font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+    box-shadow: 0 8px 22px rgba(99,102,241,.25);
+  }
+  .release-version { text-align: center; color: var(--text-dim); font-size: 10px; margin-top: 12px; }
+
 </style>
 </head>
 <body>
+
+<!-- Описание новых возможностей показывается один раз для каждой версии -->
+<div class="release-overlay" id="seynaro-release-v14" role="dialog" aria-modal="true" aria-labelledby="releaseTitle">
+  <section class="release-modal">
+    <div class="release-icon" aria-hidden="true">✨</div>
+    <div class="release-eyebrow">Что нового в Seynaro</div>
+    <h2 class="release-title" id="releaseTitle">Приложение обновлено</h2>
+    <p class="release-subtitle">Добавили полезные возможности для чтения Корана и ежедневной практики.</p>
+    <ul class="release-list">
+      <li><div class="release-check">✓</div><div><b>Коран с транскрипцией</b><span>Можно включить чтение русскими буквами рядом с арабским текстом и переводом.</span></div></li>
+      <li><div class="release-check">✓</div><div><b>Закладки и последнее чтение</b><span>Удобнее возвращаться к суре и аяту, на котором остановились.</span></div></li>
+      <li><div class="release-check">✓</div><div><b>Азкары и тасбих</b><span>Утренние и вечерние поминания и счётчик тасбиха доступны в приложении.</span></div></li>
+      <li><div class="release-check">✓</div><div><b>Улучшения компаса Киблы</b><span>Показываются направление, угол и подсказки по работе компаса.</span></div></li>
+      <li><div class="release-check">✓</div><div><b>Обновления приложения</b><span>При подключении к интернету приложение чаще проверяет наличие новой версии.</span></div></li>
+    </ul>
+    <button class="release-close" id="releaseCloseBtn" type="button">Понятно, продолжить</button>
+    <div class="release-version">Версия обновления 14</div>
+  </section>
+</div>
+
 <div class="container">
 
   <div class="page active" id="page-timetable">
@@ -2009,6 +2069,39 @@ window.addEventListener('load', function() {
 })();
 </script>
 
+
+<!-- Показ описания релиза один раз на устройство для каждой версии -->
+<script>
+(function () {
+  const releaseVersion = '14';
+  const seenKey = 'seynaro_seen_release_v' + releaseVersion;
+  const overlay = document.getElementById('seynaro-release-v14');
+  const closeBtn = document.getElementById('releaseCloseBtn');
+  if (!overlay || !closeBtn) return;
+
+  function closeRelease() {
+    overlay.classList.remove('open');
+    try { localStorage.setItem(seenKey, '1'); } catch (_) {}
+  }
+  closeBtn.addEventListener('click', closeRelease);
+  overlay.addEventListener('click', function (event) {
+    if (event.target === overlay) closeRelease();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && overlay.classList.contains('open')) closeRelease();
+  });
+
+  let alreadySeen = false;
+  try { alreadySeen = localStorage.getItem(seenKey) === '1'; } catch (_) {}
+  if (!alreadySeen) {
+    window.setTimeout(function () {
+      overlay.classList.add('open');
+      closeBtn.focus();
+    }, 650);
+  }
+})();
+</script>
+
 <!-- PWA: регистрация Service Worker -->
 <script>
 (function() {
@@ -2033,7 +2126,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=13', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=14', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
