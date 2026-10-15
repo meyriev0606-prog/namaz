@@ -683,17 +683,29 @@
       <button class="btn-calibrate" id="calibrateBtn">🧭 Включить компас</button>
       <div class="qibla-info" style="margin-top: 20px;">
         <div class="qibla-stat">
-          <div class="qibla-stat-label">Кибла</div>
+          <div class="qibla-stat-label">Азимут Киблы</div>
           <div class="qibla-stat-value" id="qiblaAngle">—</div>
         </div>
         <div class="qibla-stat">
           <div class="qibla-stat-label">До Мекки</div>
           <div class="qibla-stat-value" id="distanceToMecca">—</div>
         </div>
+        <div class="qibla-stat">
+          <div class="qibla-stat-label">Курс телефона</div>
+          <div class="qibla-stat-value" id="deviceHeadingValue">—</div>
+        </div>
+        <div class="qibla-stat">
+          <div class="qibla-stat-label">Поворот до Киблы</div>
+          <div class="qibla-stat-value" id="qiblaTurnValue">—</div>
+        </div>
+        <div class="qibla-stat" style="grid-column:1/-1;">
+          <div class="qibla-stat-label">Направление</div>
+          <div class="qibla-stat-value" id="qiblaDirectionText" style="font-size:17px;">—</div>
+        </div>
       </div>
       <div class="qibla-hint" id="qiblaHint">
-        <b>Как пользоваться:</b><br>
-        Поверните телефон так, чтобы зелёная стрелка указывала вверх — это направление на Мекку. Работает в любом положении телефона.
+        <b>Как пользоваться и откалибровать:</b><br>
+        Держите iPhone горизонтально и медленно опишите им несколько восьмёрок. Отойдите от магнитов, металлических поверхностей и электроники. Зелёная стрелка показывает направление на Каабу; при повороте телефона она должна оставаться ориентированной относительно реального севера.
       </div>
     </div>
     <div class="footer">SEYNARO · <b>MEYRIEV MAGOMED</b></div>
@@ -1191,7 +1203,18 @@ window.addEventListener('load', function() {
         label.style.transform = 'translate(-50%, -50%) rotate(' + heading + 'deg)';
       });
     }
-    if ($('qiblaArrow')) $('qiblaArrow').style.transform = 'rotate(' + normalizeDegrees(qiblaBearing - heading) + 'deg)';
+    const relative = normalizeDegrees(qiblaBearing - heading);
+    if ($('qiblaArrow')) $('qiblaArrow').style.transform = 'rotate(' + relative + 'deg)';
+    if ($('deviceHeadingValue')) $('deviceHeadingValue').innerHTML = Math.round(heading) + '<small>°</small>';
+    if ($('qiblaTurnValue')) {
+      const signedTurn = ((relative + 540) % 360) - 180;
+      const turnLabel = Math.abs(signedTurn) < 5 ? 'Прямо перед вами' : (signedTurn > 0 ? 'Направо ' : 'Налево ') + Math.round(Math.abs(signedTurn)) + '°';
+      $('qiblaTurnValue').textContent = turnLabel;
+    }
+    if ($('qiblaDirectionText')) {
+      const dirs = ['север', 'северо-восток', 'восток', 'юго-восток', 'юг', 'юго-запад', 'запад', 'северо-запад'];
+      $('qiblaDirectionText').textContent = dirs[Math.round(qiblaBearing / 45) % 8] + ' · азимут ' + Math.round(qiblaBearing) + '°';
+    }
   }
   let compassListenersAttached = false;
   let compassTimeout = null;
@@ -1216,7 +1239,7 @@ window.addEventListener('load', function() {
     hasCompass = true;
     manualHeading = null;
     updateCompass();
-    updateAccuracy('good', 'Компас активен · держите телефон ровно');
+    updateAccuracy('good', 'Датчик активен · точность зависит от калибровки и помех');
   }
 
   function attachCompassListeners() {
