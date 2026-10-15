@@ -1765,10 +1765,13 @@ window.addEventListener('load', function() {
         setTimeout(() => notice.remove(), 4500);
       }
       let refreshingForUpdate = false;
+      // Перезагружаем страницу, когда новая версия Service Worker взяла управление.
+      // Не показываем сообщение об обновлении при первом запуске без предыдущего SW.
+      const hadControllerAtStart = Boolean(navigator.serviceWorker.controller);
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshingForUpdate) return;
         refreshingForUpdate = true;
-        sessionStorage.setItem(updateNoticeKey, '1');
+        if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
       navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
@@ -1776,15 +1779,20 @@ window.addEventListener('load', function() {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
             if (!navigator.onLine) return;
-            try { await reg.update(); }
-            catch (err) { console.warn('Проверка обновления отложена:', err); }
+            try {
+              await reg.update();
+              if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            } catch (err) {
+              console.warn('Проверка обновления отложена:', err);
+            }
           };
           await checkForAppUpdate();
-          // Проверяем обновления у пользователей с открытым приложением раз в минуту.
-          window.setInterval(checkForAppUpdate, 60 * 1000);
+          // Проверяем обновления часто, при возврате во вкладку и при восстановлении сети.
+          window.setInterval(checkForAppUpdate, 30 * 1000);
           document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') checkForAppUpdate();
           });
+          window.addEventListener('online', checkForAppUpdate);
         })
         .catch(err => console.error('❌ Ошибка SW:', err));
     });
