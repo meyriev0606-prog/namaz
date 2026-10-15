@@ -2,7 +2,7 @@
 /* Seynaro — Service Worker
    Офлайн-режим и push-уведомления. */
 
-const CACHE_NAME = 'seynaro-namaz-v4';
+const CACHE_NAME = 'seynaro-namaz-v5';
 
 const ASSETS = [
   './',
