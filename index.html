@@ -535,6 +535,11 @@
     align-items: center; gap: 8px;
     transition: transform 0.2s;
   }
+
+  .quran-translit-toggle { display:flex; align-items:center; gap:10px; margin:12px 0 4px; padding:12px 14px; border:1px solid var(--panel-border); border-radius:12px; color:var(--text-muted); font-size:12px; line-height:1.5; cursor:pointer; }
+  .quran-translit-toggle input { width:18px; height:18px; accent-color:var(--accent); flex-shrink:0; }
+  .quran-transliteration { margin:12px 0; padding:12px 14px; border-left:3px solid #10b981; border-radius:8px; background:rgba(16,185,129,.08); color:var(--text); font-size:15px; line-height:1.8; }
+  .quran-transliteration span { display:block; margin-bottom:4px; color:#10b981; font-size:10px; font-weight:800; letter-spacing:.7px; text-transform:uppercase; }
 </style>
 </head>
 <body>
@@ -788,6 +793,7 @@
         <button type="button" id="quranLastBtn">▶ Продолжить</button>
         <button type="button" id="quranBookmarksBtn">🔖 Закладки</button>
       </div>
+      <label class="quran-translit-toggle"><input type="checkbox" id="quranTranslitToggle" checked> Показывать транскрипцию русскими буквами</label>
       <div class="quran-subtitle" id="quranStatus">Текст и русский перевод загружаются из онлайн-библиотеки. Для чтения нужен интернет.</div>
       <div id="quranVerses" aria-live="polite"></div>
     </div>
@@ -1724,6 +1730,10 @@ window.addEventListener('load', function() {
     }
     renderAzkar('morning');
     updateTasbih();
+    try {
+      const translitPreference = localStorage.getItem('seynaro_quran_translit');
+      if ($('quranTranslitToggle')) $('quranTranslitToggle').checked = translitPreference !== '0';
+    } catch (_) {}
   }
   async function loadQuranSurah(number, startAyah) {
     const box = $('quranVerses');
@@ -1733,12 +1743,17 @@ window.addEventListener('load', function() {
     try {
       const results = await Promise.all([
         fetch(QURAN_API + '/surah/' + number + '/quran-uthmani'),
-        fetch(QURAN_API + '/surah/' + number + '/ru.kuliev')
+        fetch(QURAN_API + '/surah/' + number + '/ru.kuliev'),
+        fetch(QURAN_API + '/surah/' + number + '/en.transliteration')
       ]);
       if (!results[0].ok || !results[1].ok) throw new Error('Ошибка загрузки текста');
-      const [arabic, russian] = await Promise.all(results.map(r => r.json()));
+      const [arabic, russian, translit] = await Promise.all(results.map(r => r.json()));
       if (arabic.code !== 200 || russian.code !== 200) throw new Error('Русский перевод временно недоступен');
-      const verses = arabic.data.ayahs.map((a,i) => ({number:a.numberInSurah, arabic:a.text, translation:russian.data.ayahs[i] ? russian.data.ayahs[i].text : 'Перевод недоступен'}));
+      const verses = arabic.data.ayahs.map((a,i) => ({
+        number:a.numberInSurah, arabic:a.text,
+        translation:russian.data.ayahs[i] ? russian.data.ayahs[i].text : 'Перевод недоступен',
+        transliteration: translit && translit.code === 200 && translit.data.ayahs[i] ? latinToRussian(translit.data.ayahs[i].text) : 'Транскрипция недоступна'
+      }));
       quranCurrent = {number:Number(number), verses};
       $('quranStatus').textContent = arabic.data.englishName + ' · ' + arabic.data.name + ' · ' + verses.length + ' аятов. Перевод: Эльмир Кулиев.';
       renderQuranVerses(Math.max(1, Number(startAyah) || 1));
@@ -1749,6 +1764,25 @@ window.addEventListener('load', function() {
       $('quranRetry').addEventListener('click', () => loadQuranSurah(Number(number), startAyah));
     }
   }
+  // Приближённая передача латинской транслитерации русскими буквами.
+  // Она помогает читать, но не заменяет арабский текст и правила таджвида.
+  function latinToRussian(input) {
+    let s = String(input || '').toLowerCase();
+    const pairs = [
+      [/allāh/g,'аллах'],[/ā/g,'а'],[/ī/g,'и'],[/ū/g,'у'],
+      [/th/g,'с'],[/dh/g,'з'],[/kh/g,'х'],[/gh/g,'гъ'],[/sh/g,'ш'],[/ch/g,'ч'],
+      [/ṣ/g,'с'],[/ḍ/g,'д'],[/ṭ/g,'т'],[/ẓ/g,'з'],[/ḥ/g,'х'],[/ḫ/g,'х'],
+      [/ʿ|‘|'/g,'ъ'],[/ʾ/g,''],[/ā/g,'а'],[/ī/g,'и'],[/ū/g,'у'],
+      [/a/g,'а'],[/b/g,'б'],[/t/g,'т'],[/j/g,'дж'],[/ḥ/g,'х'],[/h/g,'х'],
+      [/d/g,'д'],[/r/g,'р'],[/z/g,'з'],[/s/g,'с'],[/f/g,'ф'],[/q/g,'къ'],
+      [/k/g,'к'],[/l/g,'л'],[/m/g,'м'],[/n/g,'н'],[/w/g,'у'],[/y/g,'й'],
+      [/i/g,'и'],[/u/g,'у'],[/e/g,'е'],[/o/g,'о'],[/p/g,'п'],[/g/g,'г'],[/x/g,'кс'],
+      [/\s+/g,' ']
+    ];
+    pairs.forEach(([pattern, replacement]) => { s = s.replace(pattern, replacement); });
+    return s.trim();
+  }
+
   function renderQuranVerses(startAyah) {
     if (!quranCurrent) return;
     const box = $('quranVerses');
@@ -1764,6 +1798,7 @@ window.addEventListener('load', function() {
       return '<article class="quran-verse ' + (saved ? 'saved' : '') + '" id="ayah-' + v.number + '">' +
         '<div class="quran-translation" style="margin-bottom:8px;">Аят ' + v.number + '</div>' +
         '<div class="quran-arabic" lang="ar">' + safeText(v.arabic) + '</div>' +
+        (document.getElementById('quranTranslitToggle') && document.getElementById('quranTranslitToggle').checked ? '<div class="quran-transliteration" lang="ru"><span>Транскрипция</span>' + safeText(v.transliteration || 'Транскрипция недоступна') + '</div>' : '') +
         '<div class="quran-translation">' + safeText(v.translation) + '</div>' +
         '<div class="quran-verse-tools"><button type="button" data-bookmark-ayah="' + v.number + '">' + (saved ? '★ Убрать закладку' : '☆ В закладки') + '</button><button type="button" data-last-ayah="' + v.number + '">Продолжить отсюда</button></div></article>';
     }).join('');
@@ -1807,6 +1842,10 @@ window.addEventListener('load', function() {
     $('quranSurah').addEventListener('change', e => {
       quranShowBookmarks = false;
       loadQuranSurah(Number(e.target.value), 1);
+    });
+    $('quranTranslitToggle').addEventListener('change', () => {
+      if (quranCurrent) renderQuranVerses(1);
+      try { localStorage.setItem('seynaro_quran_translit', $('quranTranslitToggle').checked ? '1' : '0'); } catch (_) {}
     });
     $('quranLastBtn').addEventListener('click', async () => {
       let last = null;
