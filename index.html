@@ -1179,65 +1179,91 @@ window.addEventListener('load', function() {
     if ($('compassDial')) $('compassDial').style.transform = 'rotate(' + (-heading) + 'deg)';
     if ($('qiblaArrow')) $('qiblaArrow').style.transform = 'rotate(' + normalizeDegrees(qiblaBearing - heading) + 'deg)';
   }
+  let compassListenersAttached = false;
+  let compassTimeout = null;
   function handleOrientation(e) {
     let heading = null;
-    if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+
+    // Safari на iPhone предоставляет готовый магнитный курс в градусах.
+    // Он надёжнее попытки вычислить север из alpha/beta/gamma.
+    if (typeof e.webkitCompassHeading === 'number' && Number.isFinite(e.webkitCompassHeading)) {
       heading = e.webkitCompassHeading;
-    } else if (e.alpha !== null && e.alpha !== undefined) {
-      const alpha = e.alpha, beta = e.beta || 0, gamma = e.gamma || 0;
-      let compassHeading;
-      const betaRad = beta * Math.PI / 180, gammaRad = gamma * Math.PI / 180;
-      if (Math.abs(beta) < 25) {
-        compassHeading = 360 - alpha;
-      } else {
-        const sinBeta = Math.sin(betaRad), cosGamma = Math.cos(gammaRad), sinGamma = Math.sin(gammaRad);
-        const x = -sinBeta * cosGamma, y = sinGamma;
-        compassHeading = Math.atan2(x, y) * 180 / Math.PI;
-        if (compassHeading < 0) compassHeading += 360;
-        if (!isNaN(alpha)) {
-          const compensation = (alpha + 360) % 360;
-          compassHeading = (compassHeading + compensation) % 360;
-        }
-      }
-      heading = compassHeading;
+    } else if (e.absolute === true && typeof e.alpha === 'number' && Number.isFinite(e.alpha)) {
+      // Для абсолютного DeviceOrientation alpha: 0° — север, курс = 360° - alpha.
+      heading = 360 - e.alpha;
     }
-    if (heading !== null && !isNaN(heading)) {
-      heading = (heading + 360) % 360;
-      const diff = heading - deviceHeading;
-      const sm = diff > 180 ? diff - 360 : diff < -180 ? diff + 360 : diff;
-      deviceHeading = (deviceHeading + sm * 0.35 + 360) % 360;
-      hasCompass = true; manualHeading = null;
-      updateCompass();
-      updateAccuracy('good', 'Компас активен');
-    }
+
+    if (heading === null || !Number.isFinite(heading)) return;
+
+    heading = normalizeDegrees(heading);
+    // Сглаживание с учётом перехода через 0°/360°.
+    const diff = ((heading - deviceHeading + 540) % 360) - 180;
+    deviceHeading = normalizeDegrees(deviceHeading + diff * 0.25);
+    hasCompass = true;
+    manualHeading = null;
+    updateCompass();
+    updateAccuracy('good', 'Компас активен · держите телефон ровно');
   }
+
   function attachCompassListeners() {
-    if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-    window.addEventListener('deviceorientation', handleOrientation, true);
-    setTimeout(() => {
+    if (compassListenersAttached) return;
+    compassListenersAttached = true;
+
+    // iOS Safari обычно передаёт webkitCompassHeading в deviceorientation.
+    // На устройствах с absolute-событием используем его как запасной источник,
+    // но не подписываемся одновременно на два потока.
+    const supportsAbsolute = 'ondeviceorientationabsolute' in window;
+    if (supportsAbsolute) {
+      window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+    } else {
+      window.addEventListener('deviceorientation', handleOrientation, true);
+    }
+
+    if (compassTimeout) clearTimeout(compassTimeout);
+    compassTimeout = setTimeout(() => {
       if (!hasCompass) {
-        const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-        updateAccuracy('', isMobile ? 'Потрясите телефон для калибровки' : 'Вращайте компас мышкой');
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        updateAccuracy('', isIOS
+          ? 'Разрешите доступ к движению и компасу в Safari'
+          : 'Датчик не найден — поверните компас вручную');
       }
-    }, 2500);
+    }, 4000);
   }
+
   function startCompass() {
     if (typeof DeviceOrientationEvent === 'undefined') {
-      updateAccuracy('bad', 'Датчик не поддерживается'); return;
+      updateAccuracy('bad', 'Браузер не поддерживает датчик компаса');
+      return;
     }
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      updateAccuracy('', 'Нажмите «Включить компас» для доступа'); return;
+      updateAccuracy('', 'Нажмите «Включить компас» и разрешите доступ');
+      return;
     }
     attachCompassListeners();
   }
+
   function requestCompassPermission() {
-    if (typeof DeviceOrientationEvent.requestPermission !== 'function') { attachCompassListeners(); return; }
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      updateAccuracy('bad', 'Браузер не поддерживает датчик компаса');
+      return;
+    }
+    // iOS требует вызвать requestPermission непосредственно по нажатию пользователя.
+    if (typeof DeviceOrientationEvent.requestPermission !== 'function') {
+      attachCompassListeners();
+      updateAccuracy('', 'Ожидаем данные компаса…');
+      return;
+    }
     DeviceOrientationEvent.requestPermission()
-      .then(r => {
-        if (r === 'granted') { attachCompassListeners(); updateAccuracy('good', 'Компас активен'); showToast('✅ Компас включён'); }
-        else updateAccuracy('bad', 'Доступ запрещён');
+      .then(permission => {
+        if (permission === 'granted') {
+          attachCompassListeners();
+          updateAccuracy('', 'Доступ разрешён — определяем направление…');
+          showToast('✅ Доступ к компасу разрешён');
+        } else {
+          updateAccuracy('bad', 'Доступ запрещён. Разрешите датчики в настройках Safari');
+        }
       })
-      .catch(() => updateAccuracy('bad', 'Ошибка доступа'));
+      .catch(() => updateAccuracy('bad', 'Не удалось получить доступ к датчикам'));
   }
   function updateAccuracy(type, text) {
     const dot = $('accuracyDot'), txt = $('accuracyText');
