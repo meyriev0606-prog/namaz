@@ -580,26 +580,30 @@
   }
   .release-version { text-align: center; color: var(--text-dim); font-size: 10px; margin-top: 12px; }
 
+
+  .azkar-translit { margin: 10px 0; padding: 10px 12px; border-left: 3px solid #10b981; border-radius: 8px; background: rgba(16,185,129,.08); color: var(--text); font-size: 14px; line-height: 1.65; }
+  .azkar-translit span { display: block; margin-bottom: 4px; color: #10b981; font-size: 10px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+
 </style>
 </head>
 <body>
 
 <!-- Описание новых возможностей показывается один раз для каждой версии -->
-<div class="release-overlay" id="seynaro-release-v14" role="dialog" aria-modal="true" aria-labelledby="releaseTitle">
+<div class="release-overlay" id="seynaro-release-v15" role="dialog" aria-modal="true" aria-labelledby="releaseTitle">
   <section class="release-modal">
     <div class="release-icon" aria-hidden="true">✨</div>
     <div class="release-eyebrow">Что нового в Seynaro</div>
     <h2 class="release-title" id="releaseTitle">Приложение обновлено</h2>
     <p class="release-subtitle">Добавили полезные возможности для чтения Корана и ежедневной практики.</p>
     <ul class="release-list">
-      <li><div class="release-check">✓</div><div><b>Коран с транскрипцией</b><span>Можно включить чтение русскими буквами рядом с арабским текстом и переводом.</span></div></li>
+      <li><div class="release-check">✓</div><div><b>Коран и азкары с транскрипцией</b><span>Русские подсказки для чтения добавлены к утренним и вечерним азкарам; в Коране транскрипцию можно включить отдельно.</span></div></li>
       <li><div class="release-check">✓</div><div><b>Закладки и последнее чтение</b><span>Удобнее возвращаться к суре и аяту, на котором остановились.</span></div></li>
       <li><div class="release-check">✓</div><div><b>Азкары и тасбих</b><span>Утренние и вечерние поминания и счётчик тасбиха доступны в приложении.</span></div></li>
       <li><div class="release-check">✓</div><div><b>Улучшения компаса Киблы</b><span>Показываются направление, угол и подсказки по работе компаса.</span></div></li>
       <li><div class="release-check">✓</div><div><b>Обновления приложения</b><span>При подключении к интернету приложение чаще проверяет наличие новой версии.</span></div></li>
     </ul>
     <button class="release-close" id="releaseCloseBtn" type="button">Понятно, продолжить</button>
-    <div class="release-version">Версия обновления 14</div>
+    <div class="release-version">Версия обновления 15</div>
   </section>
 </div>
 
@@ -1878,21 +1882,27 @@ window.addEventListener('load', function() {
     if (target && !quranShowBookmarks && startAyah > 1) target.scrollIntoView({block:'start', behavior:'smooth'});
   }
   function renderAzkar(kind) {
+    // Транскрипция русскими буквами дана как подсказка; для точного чтения сверяйтесь с арабским текстом.
     const morning = [
-      ['Аят аль-Курси','اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ','Аят аль-Курси (Коран, 2:255). Прочитайте с пониманием смысла.'],
-      ['Сура «Аль-Ихляс»','قُلْ هُوَ اللَّهُ أَحَدٌ','Куль хуваллаху ахад… Прочитайте суру полностью 3 раза.'],
-      ['Сура «Аль-Фаляк»','قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ','Куль а‘узу би-раббиль-фаляк… Прочитайте суру полностью 3 раза.'],
-      ['Сура «Ан-Нас»','قُلْ أَعُوذُ بِرَبِّ النَّاسِ','Куль а‘узу би-раббин-нас… Прочитайте суру полностью 3 раза.'],
-      ['Просьба о благополучии','اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ','Аллахумма инни ас’алюкаль-‘афва валь-‘афия. О Аллах, прошу у Тебя прощения и благополучия.']
+      ['Аят аль-Курси','اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ','Аят аль-Курси (Коран, 2:255). Прочитайте с пониманием смысла.','Аллаху ля иляха илля Хуваль-Хайюль-Кайюм.'],
+      ['Сура «Аль-Ихляс»','قُلْ هُوَ اللَّهُ أَحَدٌ','Прочитайте суру полностью 3 раза.','Куль хуваллаху ахад.'],
+      ['Сура «Аль-Фаляк»','قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ','Прочитайте суру полностью 3 раза.','Куль а‘узу би-раббиль-фаляк.'],
+      ['Сура «Ан-Нас»','قُلْ أَعُوذُ بِرَبِّ النَّاسِ','Прочитайте суру полностью 3 раза.','Куль а‘узу би-раббин-нас.'],
+      ['Просьба о благополучии','اللَّهُمَّ إِنِّي أَسْأَلُكَ الْعَفْوَ وَالْعَافِيَةَ','О Аллах, прошу у Тебя прощения и благополучия.','Аллахумма инни ас’алюкаль-‘афва валь-‘афия.']
     ];
     const evening = [
-      ['Аят аль-Курси','اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ','Аят аль-Курси (Коран, 2:255). Прочитайте с пониманием смысла.'],
-      ['Сура «Аль-Ихляс»','قُلْ هُوَ اللَّهُ أَحَدٌ','Прочитайте суру полностью 3 раза.'],
-      ['Сура «Аль-Фаляк»','قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ','Прочитайте суру полностью 3 раза.'],
-      ['Сура «Ан-Нас»','قُلْ أَعُوذُ بِرَبِّ النَّاسِ','Прочитайте суру полностью 3 раза.'],
-      ['Просьба о прощении','أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ','Астагфируллаха ва атубу иляйх. Прошу у Аллаха прощения и каюсь перед Ним.']
+      ['Аят аль-Курси','اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ','Аят аль-Курси (Коран, 2:255). Прочитайте с пониманием смысла.','Аллаху ля иляха илля Хуваль-Хайюль-Кайюм.'],
+      ['Сура «Аль-Ихляс»','قُلْ هُوَ اللَّهُ أَحَدٌ','Прочитайте суру полностью 3 раза.','Куль хуваллаху ахад.'],
+      ['Сура «Аль-Фаляк»','قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ','Прочитайте суру полностью 3 раза.','Куль а‘узу би-раббиль-фаляк.'],
+      ['Сура «Ан-Нас»','قُلْ أَعُوذُ بِرَبِّ النَّاسِ','Прочитайте суру полностью 3 раза.','Куль а‘узу би-раббин-нас.'],
+      ['Просьба о прощении','أَسْتَغْفِرُ اللَّهَ وَأَتُوبُ إِلَيْهِ','Прошу у Аллаха прощения и каюсь перед Ним.','Астагфируллаха ва атубу иляйх.']
     ];
-    $('azkarContent').innerHTML = (kind === 'morning' ? morning : evening).map(a => '<div class="azkar-card"><h3>' + safeText(a[0]) + '</h3><p class="quran-arabic" lang="ar" style="font-size:22px;">' + safeText(a[1]) + '</p><p>' + safeText(a[2]) + '</p></div>').join('');
+    $('azkarContent').innerHTML = (kind === 'morning' ? morning : evening).map(a =>
+      '<div class="azkar-card"><h3>' + safeText(a[0]) +
+      '</h3><p class="quran-arabic" lang="ar" style="font-size:22px;">' + safeText(a[1]) +
+      '</p><p class="azkar-translit"><span>Транскрипция</span>' + safeText(a[3]) +
+      '</p><p>' + safeText(a[2]) + '</p></div>'
+    ).join('');
   }
   function updateTasbih() {
     $('tasbihCount').textContent = String(tasbihCount);
@@ -2073,9 +2083,9 @@ window.addEventListener('load', function() {
 <!-- Показ описания релиза один раз на устройство для каждой версии -->
 <script>
 (function () {
-  const releaseVersion = '14';
+  const releaseVersion = '15';
   const seenKey = 'seynaro_seen_release_v' + releaseVersion;
-  const overlay = document.getElementById('seynaro-release-v14');
+  const overlay = document.getElementById('seynaro-release-v15');
   const closeBtn = document.getElementById('releaseCloseBtn');
   if (!overlay || !closeBtn) return;
 
@@ -2126,7 +2136,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=14', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=15', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
