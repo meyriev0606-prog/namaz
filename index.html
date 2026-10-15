@@ -2033,7 +2033,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=11', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=12', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
