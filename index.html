@@ -10,7 +10,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Намаз">
+<meta name="apple-mobile-web-app-title" content="Seynaro">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="description" content="Seynaro — время намаза, Кибла, трекер и уведомления">
 
@@ -966,7 +966,23 @@
 </nav>
 
 <div class="toast" id="toast">Готово</div>
-<button class="install-btn" id="installBtn">📲 Установить приложение</button>
+<button class="install-btn" id="installBtn" type="button">📲 Установить Seynaro</button>
+<div class="release-overlay" id="installGuideOverlay" role="dialog" aria-modal="true" aria-labelledby="installGuideTitle">
+  <section class="release-modal">
+    <div class="release-icon" aria-hidden="true">📲</div>
+    <div class="release-eyebrow">Установка Seynaro</div>
+    <h2 class="release-title" id="installGuideTitle">Добавьте Seynaro на экран Домой</h2>
+    <p class="release-subtitle" id="installGuideIntro">Откройте Seynaro с главного экрана одним нажатием.</p>
+    <ol class="release-list" id="installGuideSteps">
+      <li><div class="release-check">1</div><div><b>Нажмите «Поделиться»</b><span>В Safari это значок квадрата со стрелкой вверх в панели браузера.</span></div></li>
+      <li><div class="release-check">2</div><div><b>Выберите «На экран Домой»</b><span>Если пункта нет, прокрутите меню вниз или откройте «Ещё».</span></div></li>
+      <li><div class="release-check">3</div><div><b>Нажмите «Добавить»</b><span>Иконка Seynaro появится на главном экране iPhone.</span></div></li>
+    </ol>
+    <p id="installGuideNote" style="font-size:12px;line-height:1.6;color:var(--text-muted);margin-bottom:16px">Важно: iPhone позволяет добавить иконку только после вашего подтверждения.</p>
+    <button class="release-close" id="installGuideClose" type="button">Понятно</button>
+    <div class="release-version">Seynaro · установка на iPhone</div>
+  </section>
+</div>
 
 <script src="https://unpkg.com/adhan@4.4.3/lib/bundles/adhan.umd.min.js"></script>
 <script>
@@ -2156,7 +2172,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=19', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=20', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
@@ -2181,19 +2197,83 @@ window.addEventListener('load', function() {
   }
   let deferredPrompt = null;
   const btn = document.getElementById('installBtn');
+  const guide = document.getElementById('installGuideOverlay');
+  const guideClose = document.getElementById('installGuideClose');
+  const guideIntro = document.getElementById('installGuideIntro');
+  const guideSteps = document.getElementById('installGuideSteps');
+  const guideNote = document.getElementById('installGuideNote');
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+  const isSafari = /^((?!chrome|crios|android|edg|fxios).)*safari/i.test(navigator.userAgent);
+
+  function openInstallGuide() {
+    if (!guide) return;
+    if (isIOS && !isSafari) {
+      guideIntro.textContent = 'Чтобы добавить Seynaro на iPhone, откройте этот сайт именно в Safari.';
+      guideSteps.innerHTML =
+        '<li><div class="release-check">1</div><div><b>Откройте меню браузера</b><span>Нажмите кнопку меню или «Поделиться» и найдите возможность открыть страницу в Safari.</span></div></li>' +
+        '<li><div class="release-check">2</div><div><b>Перейдите в Safari</b><span>Откройте адрес seynaro на сайте GitHub Pages в Safari.</span></div></li>' +
+        '<li><div class="release-check">3</div><div><b>Добавьте на экран Домой</b><span>В Safari нажмите «Поделиться» → «На экран Домой» → «Добавить».</span></div></li>';
+      guideNote.textContent = 'На iPhone установка веб-приложения через меню доступна в Safari.';
+    } else if (isIOS) {
+      guideIntro.textContent = 'Добавьте Seynaro на главный экран iPhone — это займёт несколько секунд.';
+      guideSteps.innerHTML =
+        '<li><div class="release-check">1</div><div><b>Нажмите «Поделиться»</b><span>Найдите значок квадрата со стрелкой вверх в Safari.</span></div></li>' +
+        '<li><div class="release-check">2</div><div><b>Выберите «На экран Домой»</b><span>Если пункта нет, прокрутите список действий вниз и откройте «Ещё».</span></div></li>' +
+        '<li><div class="release-check">3</div><div><b>Подтвердите добавление</b><span>Нажмите «Добавить» в верхнем углу. Иконка Seynaro появится на главном экране.</span></div></li>';
+      guideNote.textContent = 'Если хотите, чтобы Seynaro открывался отдельным окном, включите «Открывать как веб-приложение», если этот переключатель доступен.';
+    } else {
+      guideIntro.textContent = 'Добавьте Seynaro на главный экран или установите его через меню браузера.';
+      guideSteps.innerHTML =
+        '<li><div class="release-check">1</div><div><b>Откройте меню браузера</b><span>Нажмите ⋮ или кнопку установки в адресной строке.</span></div></li>' +
+        '<li><div class="release-check">2</div><div><b>Выберите установку</b><span>Нажмите «Установить приложение» или «Добавить на главный экран».</span></div></li>' +
+        '<li><div class="release-check">3</div><div><b>Подтвердите действие</b><span>После подтверждения иконка появится на устройстве.</span></div></li>';
+      guideNote.textContent = 'Названия пунктов могут немного отличаться в зависимости от браузера.';
+    }
+    guide.classList.add('open');
+    if (guideClose) guideClose.focus();
+  }
+
+  function closeInstallGuide() {
+    if (guide) guide.classList.remove('open');
+  }
+  if (guideClose) guideClose.addEventListener('click', closeInstallGuide);
+  if (guide) {
+    guide.addEventListener('click', event => {
+      if (event.target === guide) closeInstallGuide();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') closeInstallGuide();
+    });
+  }
+
+  if (btn && isIOS && !isStandalone) {
+    btn.style.display = 'flex';
+  }
+
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    if (btn) btn.style.display = 'flex';
+    if (btn && !isStandalone) btn.style.display = 'flex';
   });
   if (btn) {
     btn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log('Установка:', outcome);
+      if (isIOS || !deferredPrompt) {
+        openInstallGuide();
+        return;
+      }
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('Установка:', outcome);
+      } catch (err) {
+        console.warn('Не удалось открыть системную установку:', err);
+        openInstallGuide();
+      }
       deferredPrompt = null;
-      btn.style.display = 'none';
+      if (isStandalone) btn.style.display = 'none';
     });
   }
   window.addEventListener('appinstalled', () => {
