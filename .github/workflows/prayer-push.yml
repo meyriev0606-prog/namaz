@@ -138,8 +138,9 @@ jobs:
               if (device.notify_at_start !== false) reminders.push(0);
               for (const advance of reminders) {
                 const target = new Date(prayerTime.getTime() - advance * 60000);
-                if (todayLocal(target) !== today) continue;
                 const difference = now.getTime() - target.getTime();
+                console.log('Проверка:', name, '| намаз:', prayerTime.toLocaleString('ru-RU', { timeZone: timezone }), '| напоминание за', advance, 'мин | целевое время:', target.toLocaleString('ru-RU', { timeZone: timezone }), '| разница, мин:', Math.round(difference / 60000));
+                if (todayLocal(target) !== today) continue;
                 // Запуск каждые 5 минут; окно 14 минут учитывает задержки GitHub Actions.
                 if (difference < 0 || difference > 14 * 60000) continue;
                 const marker = today + '_' + device.id + '_' + key + '_' + advance;
