@@ -4,6 +4,13 @@
 
 const CACHE_NAME = 'seynaro-namaz-v8';
 
+// Позволяет странице принудительно активировать новую версию SW.
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 const ASSETS = [
   './',
   './index.html',
