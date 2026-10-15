@@ -532,6 +532,7 @@
       <button class="geo-btn" id="geoBtn">📍 Определить моё местоположение</button>
       <div class="city-select-wrap">
         <select id="citySelect" class="city-select">
+          <option value="">Выберите город или определите местоположение</option>
           <option value="55.7558,37.6173">Москва</option>
           <option value="59.9311,30.3609">Санкт-Петербург</option>
           <option value="55.0084,82.9357">Новосибирск</option>
@@ -960,8 +961,17 @@ window.addEventListener('load', function() {
         else if (err.code === 2) msg = 'Геолокация недоступна';
         else if (err.code === 3) msg = 'Время ожидания истекло';
         showToast(msg);
+        const savedCity = localStorage.getItem('namaz_city');
+        if (!savedCity) {
+          const status = $('status');
+          if (status) {
+            status.style.display = 'block';
+            status.className = 'status';
+            status.textContent = 'Чтобы рассчитать время намаза и направление Киблы для вашего места, разрешите геолокацию или выберите город из списка.';
+          }
+        }
       },
-      { enableHighAccuracy: false, timeout: 9000, maximumAge: 600000 }
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 300000 }
     );
   }
   function getCalcParams() {
@@ -1162,10 +1172,12 @@ window.addEventListener('load', function() {
         dial.appendChild(el);
       });
   }
+  function normalizeDegrees(value) { return ((value % 360) + 360) % 360; }
   function updateCompass() {
-    const heading = manualHeading !== null ? manualHeading : deviceHeading;
-    if ($('compassDial')) $('compassDial').style.transform = `rotate(${-heading}deg)`;
-    if ($('qiblaArrow')) $('qiblaArrow').style.transform = `rotate(${qiblaBearing - heading}deg)`;
+    // Направление Киблы считается по координатам, стрелка учитывает курс устройства.
+    const heading = normalizeDegrees(manualHeading !== null ? manualHeading : deviceHeading);
+    if ($('compassDial')) $('compassDial').style.transform = 'rotate(' + (-heading) + 'deg)';
+    if ($('qiblaArrow')) $('qiblaArrow').style.transform = 'rotate(' + normalizeDegrees(qiblaBearing - heading) + 'deg)';
   }
   function handleOrientation(e) {
     let heading = null;
@@ -1473,6 +1485,12 @@ window.addEventListener('load', function() {
   function bindMain() {
     $('citySelect').addEventListener('change', function(e) {
       const v = e.target.value;
+      if (!v) {
+        localStorage.removeItem('namaz_city'); localStorage.removeItem('namaz_gps'); isGpsLocation = false; updateGeoBadge();
+        $('status').style.display = 'block'; $('status').className = 'status';
+        $('status').textContent = 'Определите местоположение или выберите город, чтобы рассчитать время намаза и Киблу.';
+        $('prayersList').style.display = 'none'; $('nextCard').style.display = 'none'; $('dateInfo').style.display = 'none'; return;
+      }
       if (v && v.includes(',')) {
         const [lat, lon] = v.split(',').map(parseFloat);
         if (!isNaN(lat) && !isNaN(lon)) {
@@ -1533,18 +1551,23 @@ window.addEventListener('load', function() {
     bindMain();
     bindNotifications();
     updateNotifUI();
-    const savedCity = localStorage.getItem('namaz_city') || '55.7558,37.6173';
+    const savedCity = localStorage.getItem('namaz_city');
     let found = false;
-    for (let i = 0; i < $('citySelect').options.length; i++) {
-      if ($('citySelect').options[i].value === savedCity) {
-        $('citySelect').selectedIndex = i; found = true; break;
+    if (savedCity) {
+      for (let i = 0; i < $('citySelect').options.length; i++) {
+        if ($('citySelect').options[i].value === savedCity) { $('citySelect').selectedIndex = i; found = true; break; }
       }
+      const parts = savedCity.split(',');
+      const lat = parseFloat(parts[0]), lon = parseFloat(parts[1]);
+      if (!found) { $('citySelect').selectedIndex = 0; isGpsLocation = localStorage.getItem('namaz_gps') === '1'; }
+      updateGeoBadge();
+      if (Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180) calculate(lat, lon);
+      else { $('status').style.display = 'block'; $('status').textContent = 'Определите местоположение или выберите город, чтобы рассчитать время намаза и Киблу.'; }
+    } else {
+      $('citySelect').selectedIndex = 0; updateGeoBadge();
+      $('status').style.display = 'block'; $('status').textContent = 'Определяем ваше местоположение…';
+      tryGeolocation();
     }
-    const parts = savedCity.split(',');
-    const lat = parseFloat(parts[0]), lon = parseFloat(parts[1]);
-    if (!found) { $('citySelect').selectedIndex = -1; isGpsLocation = true; }
-    updateGeoBadge();
-    if (!isNaN(lat) && !isNaN(lon)) calculate(lat, lon);
     startCompass();
     setInterval(() => { if (settings.theme === 'auto') applyTheme(); }, 15 * 60 * 1000);
     console.log('=== ИНИЦИАЛИЗАЦИЯ v2.0 ЗАВЕРШЕНА ===');
