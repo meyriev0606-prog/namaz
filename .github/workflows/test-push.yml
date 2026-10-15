@@ -1,4 +1,4 @@
-```yaml
+
 name: Seynaro Push Test
 
 on:
@@ -26,6 +26,19 @@ jobs:
           node --input-type=module <<'NODE'
           import webpush from 'web-push';
 
+          const required = [
+            'VAPID_PUBLIC_KEY',
+            'VAPID_PRIVATE_KEY',
+            'VAPID_SUBJECT',
+            'PUSH_SUBSCRIPTION'
+          ];
+
+          for (const name of required) {
+            if (!process.env[name]) {
+              throw new Error(`Missing GitHub Secret: ${name}`);
+            }
+          }
+
           const subscription = JSON.parse(
             process.env.PUSH_SUBSCRIPTION
           );
@@ -40,11 +53,10 @@ jobs:
             subscription,
             JSON.stringify({
               title: 'Seynaro — тест',
-              body: 'Отлично! Тестовое Push-уведомление получено.',
+              body: 'Тестовое Push-уведомление получено.',
               url: './'
             })
           );
 
           console.log('Тестовое уведомление отправлено.');
           NODE
-```
