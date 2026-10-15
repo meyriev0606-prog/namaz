@@ -2080,18 +2080,15 @@ window.addEventListener('load', function() {
 </script>
 
 
-<!-- Показ описания релиза один раз на устройство для каждой версии -->
+<!-- Показывать описание обновления при каждом входе в приложение -->
 <script>
 (function () {
-  const releaseVersion = '15';
-  const seenKey = 'seynaro_seen_release_v' + releaseVersion;
   const overlay = document.getElementById('seynaro-release-v15');
   const closeBtn = document.getElementById('releaseCloseBtn');
   if (!overlay || !closeBtn) return;
 
   function closeRelease() {
     overlay.classList.remove('open');
-    try { localStorage.setItem(seenKey, '1'); } catch (_) {}
   }
   closeBtn.addEventListener('click', closeRelease);
   overlay.addEventListener('click', function (event) {
@@ -2101,14 +2098,11 @@ window.addEventListener('load', function() {
     if (event.key === 'Escape' && overlay.classList.contains('open')) closeRelease();
   });
 
-  let alreadySeen = false;
-  try { alreadySeen = localStorage.getItem(seenKey) === '1'; } catch (_) {}
-  if (!alreadySeen) {
-    window.setTimeout(function () {
-      overlay.classList.add('open');
-      closeBtn.focus();
-    }, 650);
-  }
+  // Окно не сохраняет отметку о просмотре и появляется при каждом запуске страницы.
+  window.setTimeout(function () {
+    overlay.classList.add('open');
+    closeBtn.focus();
+  }, 650);
 })();
 </script>
 
@@ -2136,7 +2130,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=15', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=16', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
