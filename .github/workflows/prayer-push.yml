@@ -1,4 +1,3 @@
-
 name: Seynaro — автоматические Push-уведомления
 
 on:
@@ -24,6 +23,8 @@ jobs:
       VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
       PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
     steps:
       - name: Скачать репозиторий
@@ -46,152 +47,174 @@ jobs:
           const adhan = require('adhan');
           const webpush = require('web-push');
 
-          async function main() {
-            const required = [
-              'VAPID_PUBLIC_KEY',
-              'VAPID_PRIVATE_KEY',
-              'VAPID_SUBJECT',
-              'PUSH_SUBSCRIPTION'
-            ];
-
-            for (const name of required) {
-              if (!process.env[name]) {
-                throw new Error('Не задан секрет GitHub: ' + name);
-              }
-            }
-
-            webpush.setVapidDetails(
-              process.env.VAPID_SUBJECT,
-              process.env.VAPID_PUBLIC_KEY,
-              process.env.VAPID_PRIVATE_KEY
-            );
-
-            const subscription =
-              JSON.parse(process.env.PUSH_SUBSCRIPTION);
-
-            const lat = Number(process.env.PRAYER_LAT);
-            const lon = Number(process.env.PRAYER_LON);
-            if (!Number.isFinite(lat) || lat < -90 || lat > 90 ||
-                !Number.isFinite(lon) || lon < -180 || lon > 180) {
-              throw new Error('PRAYER_LAT или PRAYER_LON заданы некорректно');
-            }
-            console.log('Городские координаты для расчёта:', lat + ', ' + lon);
-            console.log('Часовой пояс расчёта:', process.env.TZ);
-            const coords = new adhan.Coordinates(lat, lon);
-            const params = adhan.CalculationMethod.MuslimWorldLeague();
-            params.madhab = adhan.Madhab.Shafi;
-
-            const now = new Date();
-            const prayers = new adhan.PrayerTimes(coords, now, params);
-            console.log('Дата проверки:', now.toString());
-            console.log('Расписание намаза:', Object.entries({fajr: prayers.fajr, dhuhr: prayers.dhuhr, asr: prayers.asr, maghrib: prayers.maghrib, isha: prayers.isha}).map(([k, v]) => k + '=' + targetTime(v)).join(', '));
-
-            const names = {
-              fajr: 'Фаджр',
-              dhuhr: 'Зухр',
-              asr: 'Аср',
-              maghrib: 'Магриб',
-              isha: 'Иша'
-            };
-
-            const stateFile = '.github/prayer-push-state.json';
-            let state = {};
-
-            if (fs.existsSync(stateFile)) {
-              state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-            }
-
-            const today = [
-              now.getFullYear(),
-              String(now.getMonth() + 1).padStart(2, '0'),
-              String(now.getDate()).padStart(2, '0')
-            ].join('-');
-
-            const nowMs = now.getTime();
-            let changed = false;
-
-            for (const [key, name] of Object.entries(names)) {
-              const prayerTime = prayers[key];
-
-              for (const advance of [10, 0]) {
-                const target = new Date(
-                  prayerTime.getTime() - advance * 60_000
-                );
-
-                // Не отправляем уведомления за пределами сегодняшнего дня.
-                if (
-                  target.getFullYear() !== now.getFullYear() ||
-                  target.getMonth() !== now.getMonth() ||
-                  target.getDate() !== now.getDate()
-                ) continue;
-
-                const difference = nowMs - target.getTime();
-
-                // Workflow запускается каждые 5 минут; GitHub может задерживать cron.
-                // Окно 14 минут снижает риск пропуска. Дедупликация по state не даёт
-                // повторно отправить одно и то же уведомление после сохранения state.
-                if (difference < 0 || difference > 14 * 60_000) continue;
-
-                const marker = `${today}_${key}_${advance}`;
-
-                if (state[marker]) continue;
-
-                const body = advance > 0
-                  ? `Через ${advance} мин намаз ${name} (${targetTime(prayerTime)})`
-                  : `Время намаза ${name} — ${targetTime(prayerTime)}`;
-
-                await webpush.sendNotification(
-                  subscription,
-                  JSON.stringify({
-                    title: '🕌 ' + name,
-                    body,
-                    tag: 'seynaro-' + marker,
-                    url: './'
-                  })
-                );
-
-                state[marker] = new Date().toISOString();
-                changed = true;
-                console.log('Отправлено:', marker);
-              }
-            }
-
-            // Удаляем старые отметки, чтобы файл не рос бесконечно.
-            for (const marker of Object.keys(state)) {
-              if (!marker.startsWith(today)) {
-                const datePart = marker.slice(0, 10);
-                const age = (Date.parse(today) - Date.parse(datePart))
-                  / 86_400_000;
-
-                if (Number.isFinite(age) && age > 3) {
-                  delete state[marker];
-                  changed = true;
-                }
-              }
-            }
-
-            if (changed) {
-              fs.writeFileSync(
-                stateFile,
-                JSON.stringify(state, null, 2) + '\n'
-              );
-            } else {
-              console.log('Сейчас время отправки уведомлений не наступило.');
-            }
-          }
+          const names = {
+            fajr: 'Фаджр', dhuhr: 'Зухр', asr: 'Аср',
+            maghrib: 'Магриб', isha: 'Иша'
+          };
+          const stateFile = '.github/prayer-push-state.json';
+          let state = fs.existsSync(stateFile)
+            ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : {};
+          let changed = false;
 
           function targetTime(date) {
             return date.toLocaleTimeString('ru-RU', {
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
+              hour: '2-digit', minute: '2-digit', hour12: false
             });
           }
+          function todayLocal(now) {
+            return [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'),
+              String(now.getDate()).padStart(2,'0')].join('-');
+          }
+          function getParams(method, madhab) {
+            const methods = {
+              MuslimWorldLeague: 'MuslimWorldLeague',
+              NorthAmerica: 'NorthAmerica',
+              Egyptian: 'Egyptian',
+              UmmAlQura: 'UmmAlQura',
+              Karachi: 'Karachi',
+              Dubai: 'Dubai',
+              Kuwait: 'Kuwait',
+              Qatar: 'Qatar',
+              Singapore: 'Singapore',
+              Turkey: 'Turkey',
+              Tehran: 'Tehran',
+              MoonsightingCommittee: 'MoonsightingCommittee'
+            };
+            const factory = adhan.CalculationMethod[methods[method] || 'MuslimWorldLeague'];
+            const params = factory();
+            params.madhab = madhab === 'hanafi' ? adhan.Madhab.Hanafi : adhan.Madhab.Shafi;
+            return params;
+          }
+          async function fetchDevices() {
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            if (!url || !key) return null;
+            const response = await fetch(url.replace(/\/$/, '') +
+              '/rest/v1/prayer_devices?enabled=eq.true&select=*', {
+                headers: { apikey: key, Authorization: 'Bearer ' + key }
+              });
+            if (!response.ok) throw new Error('Supabase GET error ' + response.status + ': ' + await response.text());
+            return await response.json();
+          }
+          async function disableDevice(device) {
+            const url = process.env.SUPABASE_URL.replace(/\/$/, '');
+            const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            const response = await fetch(url + '/rest/v1/prayer_devices?id=eq.' +
+              encodeURIComponent(device.id), {
+                method: 'PATCH',
+                headers: {
+                  apikey: key, Authorization: 'Bearer ' + key,
+                  'Content-Type': 'application/json', Prefer: 'return=minimal'
+                },
+                body: JSON.stringify({ enabled: false })
+              });
+            if (!response.ok) console.error('Не удалось отключить нерабочую подписку', device.id, response.status);
+          }
+          async function sendForDevice(device) {
+            const timezone = device.timezone || 'UTC';
+            process.env.TZ = timezone;
+            const now = new Date();
+            const today = todayLocal(now);
+            const coords = new adhan.Coordinates(Number(device.latitude), Number(device.longitude));
+            const params = getParams(device.calculation_method, device.madhab);
+            const prayers = new adhan.PrayerTimes(coords, now, params);
+            const preferences = device.prayer_preferences || {};
+            const advanceMinutes = Math.max(0, Math.min(120, Number(device.notify_before_minutes ?? 10)));
+            const subscription = device.subscription;
+            if (!subscription || !subscription.endpoint) {
+              console.error('Подписка отсутствует для устройства', device.id);
+              await disableDevice(device);
+              return;
+            }
+            for (const [key, name] of Object.entries(names)) {
+              if (preferences[key] === false) continue;
+              const prayerTime = prayers[key];
+              if (!(prayerTime instanceof Date) || !Number.isFinite(prayerTime.getTime())) continue;
+              const reminders = [];
+              if (advanceMinutes > 0) reminders.push(advanceMinutes);
+              if (device.notify_at_start !== false) reminders.push(0);
+              for (const advance of reminders) {
+                const target = new Date(prayerTime.getTime() - advance * 60000);
+                if (todayLocal(target) !== today) continue;
+                const difference = now.getTime() - target.getTime();
+                // Запуск каждые 5 минут; окно 14 минут учитывает задержки GitHub Actions.
+                if (difference < 0 || difference > 14 * 60000) continue;
+                const marker = today + '_' + device.id + '_' + key + '_' + advance;
+                if (state[marker]) continue;
+                const body = advance > 0
+                  ? `Через ${advance} мин намаз ${name} (${targetTime(prayerTime)})`
+                  : `Время намаза ${name} — ${targetTime(prayerTime)}`;
+                try {
+                  await webpush.sendNotification(subscription, JSON.stringify({
+                    title: '🕌 ' + name, body, tag: 'seynaro-' + marker, url: './'
+                  }));
+                  state[marker] = new Date().toISOString();
+                  changed = true;
+                  console.log('Отправлено устройству', device.id, marker, timezone);
+                } catch (error) {
+                  console.error('Push error для устройства', device.id, error.statusCode || '', error.message);
+                  if (error.statusCode === 404 || error.statusCode === 410) await disableDevice(device);
+                  else throw error;
+                }
+              }
+            }
+          }
 
-          main().catch(error => {
-            console.error(error);
-            process.exit(1);
-          });
+          async function main() {
+            for (const name of ['VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','VAPID_SUBJECT']) {
+              if (!process.env[name]) throw new Error('Не задан секрет GitHub: ' + name);
+            }
+            webpush.setVapidDetails(process.env.VAPID_SUBJECT,
+              process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+
+            const devices = await fetchDevices();
+            if (devices !== null) {
+              console.log('Активных устройств в облачной базе:', devices.length);
+              for (const device of devices) {
+                try { await sendForDevice(device); }
+                catch (error) { console.error('Ошибка устройства', device.id, error.message); }
+              }
+            } else {
+              // Резервный режим для старой одиночной подписки.
+              if (!process.env.PUSH_SUBSCRIPTION) {
+                throw new Error('Добавь SUPABASE_URL и SUPABASE_SERVICE_ROLE_KEY в GitHub Secrets. Для резервного режима нужен PUSH_SUBSCRIPTION.');
+              }
+              process.env.TZ = process.env.TZ || 'Europe/Moscow';
+              const lat = Number(process.env.PRAYER_LAT), lon = Number(process.env.PRAYER_LON);
+              if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+                throw new Error('PRAYER_LAT или PRAYER_LON заданы некорректно');
+              }
+              const now = new Date(), today = todayLocal(now);
+              const prayers = new adhan.PrayerTimes(new adhan.Coordinates(lat, lon), now, getParams('MuslimWorldLeague','shafi'));
+              const subscription = JSON.parse(process.env.PUSH_SUBSCRIPTION);
+              for (const [key, name] of Object.entries(names)) {
+                for (const advance of [10,0]) {
+                  const target = new Date(prayers[key].getTime() - advance*60000);
+                  if (todayLocal(target) !== today) continue;
+                  const difference = now.getTime() - target.getTime();
+                  if (difference < 0 || difference > 14*60000) continue;
+                  const marker = today + '_legacy_' + key + '_' + advance;
+                  if (state[marker]) continue;
+                  await webpush.sendNotification(subscription, JSON.stringify({
+                    title: '🕌 ' + name,
+                    body: advance ? `Через ${advance} мин намаз ${name} (${targetTime(prayers[key])})` : `Время намаза ${name} — ${targetTime(prayers[key])}`,
+                    tag: 'seynaro-' + marker, url: './'
+                  }));
+                  state[marker] = new Date().toISOString(); changed = true;
+                  console.log('Отправлено (резервный режим):', marker);
+                }
+              }
+            }
+            const now = new Date(), today = todayLocal(now);
+            for (const marker of Object.keys(state)) {
+              const datePart = marker.slice(0,10);
+              const age = (Date.parse(today) - Date.parse(datePart)) / 86400000;
+              if (Number.isFinite(age) && age > 3) { delete state[marker]; changed = true; }
+            }
+            if (changed) fs.writeFileSync(stateFile, JSON.stringify(state,null,2) + '\n');
+            else console.log('Сейчас время отправки уведомлений не наступило.');
+          }
+          main().catch(error => { console.error(error); process.exit(1); });
           NODE
 
       - name: Сохранить отметки отправленных уведомлений
