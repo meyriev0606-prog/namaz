@@ -2,7 +2,7 @@
 /* Seynaro — Service Worker
    Офлайн-режим и push-уведомления. */
 
-const CACHE_NAME = 'seynaro-namaz-v23';
+const CACHE_NAME = 'seynaro-namaz-v24';
 
 // Позволяет странице принудительно активировать новую версию SW.
 self.addEventListener('message', event => {
@@ -18,7 +18,8 @@ const ASSETS = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './icons/apple-touch-icon.png',
+  './icons/seynaro-icon.svg'
 ];
 
 // Установка — кэшируем файлы приложения

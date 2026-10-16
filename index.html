@@ -7,7 +7,7 @@
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#6366f1">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="icons/seynaro-icon.svg">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Seynaro">
@@ -2186,7 +2186,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=23', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=24', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
