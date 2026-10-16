@@ -646,6 +646,7 @@
           <option value="45.0355,38.9753">Краснодар</option>
           <option value="43.1155,131.8855">Владивосток</option>
           <option value="43.3179,45.6981">Грозный</option>
+          <option value="43.1667,44.8167">Магас — Ингушетия</option>
           <option value="42.9764,47.5022">Махачкала</option>
           <option value="43.4981,43.6189">Нальчик</option>
           <option value="43.0367,44.6678">Владикавказ</option>
@@ -2185,7 +2186,7 @@ window.addEventListener('load', function() {
         if (hadControllerAtStart) sessionStorage.setItem(updateNoticeKey, '1');
         window.location.reload();
       });
-      navigator.serviceWorker.register('./sw.js?v=22', { updateViaCache: 'none' })
+      navigator.serviceWorker.register('./sw.js?v=23', { updateViaCache: 'none' })
         .then(async reg => {
           console.log('✅ Service Worker зарегистрирован:', reg.scope);
           const checkForAppUpdate = async () => {
